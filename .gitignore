@@ -1,2 +1,14 @@
-.*~
-.*#
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.RData
+.DS_Store
+*~
+*_cache
+*_files
+*#
+*#*
+*.log
+*.html
+.Rhistory
