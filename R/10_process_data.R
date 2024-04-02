@@ -23,7 +23,7 @@ save(data, file = "../data/primary/data.RData")
 
 ## read in the disturbance lookup
 ## ---- read_lookup
-lookup <- read_csv("../data/primary/dist.lookup 5.csv")
+lookup <- read_csv("../data/primary/dist.lookup 9.csv")
 ## ----end
 
 ## ---- save_data_2
