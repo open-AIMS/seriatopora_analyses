@@ -69,7 +69,147 @@ before_after_tests <- function(.x) {
 ## ----end
 
 
+## ---- model_summary_functions
+model_summary <- function(mod, ...) {
+   UseMethod("model_summary")
+}
 
+model_summary.glmmTMB <- function(mod, exponentiate = FALSE) {
+  mod |>
+    parameters::model_parameters(exponentiate = exponentiate) |>
+    as.data.frame() |> 
+    ## sanitise
+    dplyr::rename(
+      term = Parameter,
+      estimate = Coefficient,
+      conf.low = CI_low,
+      conf.high = CI_high,
+      effect = Effects
+    ) |>
+    mutate(term = str_replace(term, "SD \\((.*)\\)", paste0("SD (Intercept ", Group, ")"))) |>
+      mutate(term = ifelse(Component == "dispersion", "phi", term)) |>
+      arrange(effect) |>
+      dplyr::select(term, estimate, conf.low, conf.high, effect)
+  }
+model_summary.brmsfit <- function(mod, exponentiate = FALSE) {
+  mod |>
+    tidybayes::tidy_draws() |>
+    dplyr::select(matches("^b_|^sd_|^phi")) |>
+    {\(.)
+      if (exponentiate) mutate(., across(matches("^b_"), \(x) exp(x)))
+      else .
+    }() |> 
+    tidybayes::summarise_draws(
+      median,
+      HDInterval::hdi
+    ) |>
+    ## sanitise
+    dplyr::rename(
+      term = variable,
+      estimate = median,
+      conf.low = lower,
+      conf.high = upper
+    ) |>
+    mutate(effect = ifelse(str_detect(term, "sd_"), "random", "fixed")) |>
+    mutate(term = str_replace(term, "b_Intercept", "(Intercept)")) |> 
+    mutate(term = str_replace(term, "b_(.*)", "\\1")) |> 
+    mutate(term = str_replace(term, "sd_(.*)__Intercept", "SD (Intercept \\1)")) |> 
+    arrange(effect) |> 
+      dplyr::select(term, estimate, conf.low, conf.high, effect)
+}
+model_summary.inla <- function(mod, draws, exponentiate = FALSE) {
+
+  contents <- mod$misc$configs$contents
+
+  form <- mod$.args$formula
+  gf <- INLA:::inla.interpret.formula(form)
+
+  fixed_terms <- "(Intercept)"
+  i_params <- contents$start[match(fixed_terms, contents$tag)]
+  fixed_params <- t(sapply(draws, function(x) x$latent[i_params])) |>
+    matrix(ncol = gf$n.fix) |>
+    as.data.frame() |>
+    setNames(fixed_terms) 
+  if (exponentiate) fixed_params <- exp(fixed_params)
+
+  random_terms <- sapply(mod$all.hyper$random, function(x) x$hyperid)
+  i_params <- str_which(names(draws[[1]]$hyperpar), paste(random_terms, collapse = "|"))
+  random_params <- t(sapply(draws, function(x) x$hyperpar[i_params])) |>
+    matrix(ncol = gf$n.random) |>
+    as.data.frame() |>
+    setNames(paste0("SD (Intercept ", random_terms, ")")) |>
+    mutate(across(everything(), \(x) 1 / sqrt(x))) 
+
+  family_terms <- sapply(mod$all.hyper$family, function(x) x$label)
+  family_terms <- str_subset(names(draws[[1]]$hyperpar), family_terms) |>
+    str_replace("(\\w+).*", "\\1")
+  i_params <- str_which(names(draws[[1]]$hyperpar), paste(family_terms, collapse = "|"))
+  family_params <- t(sapply(draws, function(x) x$hyperpar[i_params])) |>
+    matrix(ncol = length(family_terms)) |>
+    as.data.frame() |>
+    setNames(str_replace(family_terms, "over", "")) |> 
+    mutate(across(everything(), \(x) 1 / sqrt(x))) 
+
+  params <-
+    cbind(fixed_params, family_params, random_params) |>
+    as.data.frame() |>
+    posterior::as_draws() |>
+    posterior::summarise_draws(
+      median,
+      HDInterval::hdi
+    ) |>
+    dplyr::rename(term = variable, estimate = median, conf.low = lower, conf.high = upper) |>
+    mutate(effect = ifelse(str_detect(term, "^SD "), "random", "fixed")) |>
+    arrange(effect)
+}
+## ----end
+
+
+
+
+## ---- make_brms_dharma_res_functions
+make_brms_dharma_res <- function(brms_model, seed = 10, ...) {
+                                        # equivalent to `simulateResiduals(lme4_model, use.u = FALSE)`
+                                        # cores are set to 1 just to ensure reproducibility
+    options(mc.cores = 1)
+    on.exit(options(mc.cores = parallel::detectCores()))
+    response <- brms::standata(brms_model)$Y
+    ndraws <- nrow(as_draws_df(brms_model))
+    manual_preds_brms <- matrix(0, ndraws, nrow(brms_model$data))
+    random_terms <- insight::find_random(
+                                 brms_model, split_nested = TRUE, flatten = TRUE
+                             )
+                                        # for this to have a similar output to `glmmTMB`'s default, we need to
+                                        #   create new levels in the hierarchical variables, so then we can
+                                        #   use `allow_new_levels = TRUE` and `sample_new_levels = "gaussian"` in
+                                        #   `brms::posterior_epred`. This is equivalent to
+                                        #   `simulateResiduals(lme4_model, use.u = FALSE)`. See details in
+                                        #   `lme4:::simulate.merMod` and `glmmTMB:::simulate.glmmTMB`
+                                        ## random_terms <- unlist(str_split(random_terms, ".\\+."))
+  random_terms <- str_subset(random_terms, "\\+", negate = TRUE)
+    new_data <- brms_model$data |>
+        dplyr::mutate(across(
+                   all_of(random_terms), \(x)paste0("NEW_", x) |> as.factor()
+               ))
+    set.seed(seed)
+    brms_sims <- brms::posterior_predict(
+                           brms_model, re_formula = NULL, newdata = new_data,
+                           allow_new_levels = TRUE, sample_new_levels = "gaussian"
+                       ) |>
+        t()
+    fitted_median_brms <- apply(brms_sims, 1, median)
+    ## fitted_median_brms <- apply(
+    ##     t(brms::posterior_epred(brms_model, ndraws = ndraws, re.form = NA)),
+    ##     1,
+    ##     mean)
+    DHARMa::createDHARMa(
+                simulatedResponse = brms_sims,
+                observedResponse = response,
+                fittedPredictedResponse = fitted_median_brms,
+                ...
+            )
+}
+## ----end
 
 
 ## ---- posterior_fitted.inla function
@@ -500,11 +640,14 @@ pp_check.foo <- function(object, type = c("multiple", "overlaid"), ...) {
 ##   9 After     s      0.00271
 ##  11 After     u      0.00607
 
+
+## ---- before_vs_afters_function
 before_vs_afters <- function(.x) {
   .x <- .x |>
-    mutate(Dist = factor(Dist,
-      levels = c("Before", "s", "c", "d", "b", "u")
-    )) |>
+    ## mutate(Dist = factor(Dist,
+    ##   levels = c("Before", "s", "c", "d", "b", "u")
+    ## )) |>
+    mutate(Dist = forcats::fct_relevel(Dist, "Before")) |>
     arrange(Dist)
   N <- nrow(.x)
   xmat <- cbind(-1, 1 * contr.treatment(N, base = 1, contrast = TRUE))
@@ -515,3 +658,373 @@ before_vs_afters <- function(.x) {
     Values = exp(as.vector(x %*% t(xmat)))
   )
 }
+## ----end
+
+## ---- brm_generate_newdata
+brm_generate_newdata <- function(data, GBR = FALSE) {
+  if (GBR) {
+    newdata <-
+      data |>
+      dplyr::select(Dist, s, c, d, b, u) |>
+      ## filter(SecShelf == "CA M") |> 
+      distinct() |>
+      rowwise() |>
+      mutate(Dist2 = paste(c("s", "c", "d", "b", "u")[which(c(s, c, d, b, u) == 1)], collapse = "")) |>
+      ungroup()
+  } else {
+    newdata <-
+      data |>
+      dplyr::select(SecShelf, Dist, s, c, d, b, u) |>
+      ## filter(SecShelf == "CA M") |> 
+      distinct() |>
+      rowwise() |>
+      mutate(Dist2 = paste(c("s", "c", "d", "b", "u")[which(c(s, c, d, b, u) == 1)], collapse = "")) |>
+      ungroup()
+  }
+
+  newdata <- bind_rows(
+    ## 1. based on the Dist2 field, duplicate the rows into their components
+    ## 2. create a field to indicate whether the row represents a cummulative (multiple disturbances)
+    newdata |>
+      mutate(Dist3 = Dist2) |> 
+      separate_longer_position(Dist2, width = 1, keep_empty = TRUE) |>
+      mutate(cummulative = ifelse(Dist != "Before" & str_length(Dist)>1, TRUE, FALSE)),
+    newdata |>
+      mutate(Dist3 = Dist2) |> 
+      separate_longer_position(Dist2, width = 1, keep_empty = TRUE) |>
+      mutate(s = factor(ifelse(!str_detect(Dist2, "s") | is.na(Dist2), 0, 1))) |>
+      mutate(c = factor(ifelse(!str_detect(Dist2, "c") | is.na(Dist2), 0, 1))) |>
+      mutate(d = factor(ifelse(!str_detect(Dist2, "d") | is.na(Dist2), 0, 1))) |>
+      mutate(b = factor(ifelse(!str_detect(Dist2, "b") | is.na(Dist2), 0, 1))) |>
+      mutate(u = factor(ifelse(!str_detect(Dist2, "u") | is.na(Dist2), 0, 1))) |>
+      mutate(cummulative = FALSE)) |>
+    mutate(Dist2 = ifelse(is.na(Dist2), "Before", Dist2)) |>
+    dplyr::select(-Dist) |>
+    distinct() |>
+    arrange(Dist2) |>
+    mutate(AIMS_REEF_NAME = NA, Site = NA, Transect = NA, event = NA, total.points = 1) |>
+    filter(!is.na(s)) |>
+    mutate(Dist3 = ifelse(cummulative, Dist3, Dist2))
+  if (GBR) newdata <- newdata |> mutate(SecShelf = NA)
+  return(newdata)
+}
+## ----end
+
+## ---- brm_generate_cellmeans_function
+brm_generate_cellmeans <- function(newdata, pred) {
+  newdata |>
+    cbind(pred) |> 
+    pivot_longer(cols = matches("^[0-9]*$"), names_to = ".draws") |>
+    mutate(Pred = (value)) |>
+    mutate(
+      Dist = ifelse(Dist2 == "" | is.na(Dist2), "Before", Dist2),
+      Dist = forcats::fct_relevel(Dist, "Before"),
+      Dist3 = forcats::fct_relevel(Dist3, "Before")
+    ) |> 
+    separate(SecShelf, into = c("A_SECTOR", "SHELF"), sep = " ") 
+}
+## ----end
+
+## ---- disturbance_palette
+dist_palette <- tribble(
+  ~lab, ~color,
+  "Before", "#000000",
+  "b",    "#e41a1c",
+  "s",    "#377eb8",
+  "sb",   "#8E4C6A",
+  "d",    "#c6c6c6",
+  "c",    "#4daf4a",
+  "cb",   "#996533",
+  "sc",   "#429781",
+  "scb",  "#786D5F",
+  "cd",   "#275825",
+  "cu",   "#a69725",
+  "u",    "#ff7f00",
+  )
+## ----end
+
+## ---- brm_partial_plot_function
+brm_partial_plot <- function(cellmeans_summ_brm) {
+  before_underlay_band <- cellmeans_summ_brm |>
+    ungroup() |>
+    filter(Dist2 == "Before") |>
+    dplyr::select(A_SECTOR, SHELF, Dist2, lower, upper) |>
+    distinct() |>
+    mutate(
+      Dist2 = factor(Dist2,
+        levels = c("Before", "b", "c", "s", "d", "u"),
+        labels = c("Before", "Bleaching", "COTS", "Storms", "Disease", "Unknown")
+      ),
+      A_SECTOR = factor(A_SECTOR,
+        levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+        labels = c(
+          "Cape Grenville", "Cooktown Lizard", "Cairns",
+          "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
+        )
+      ),
+      SHELF = factor(SHELF,
+        levels = c("I", "M", "O"),
+        labels = c("Inshore", "Midshelf", "Offshore")
+      )
+    )
+
+  p <-
+    cellmeans_summ_brm |>
+    mutate(Dist2 = factor(Dist2,
+      levels = c("Before", "b", "c", "s", "d", "u"),
+      labels = c("Before", "Bleaching", "COTS", "Storms", "Disease", "Unknown"))) |> 
+    mutate(A_SECTOR = factor(A_SECTOR,
+      levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+      labels = c(
+        "Cape Grenville", "Cooktown Lizard", "Cairns",
+        "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
+      )
+    ),
+    SHELF =  factor(SHELF, levels = c("I", "M", "O"),
+      labels = c("Inshore", "Midshelf", "Offshore")))|> 
+    mutate(Dist.time = ifelse(Dist == "Before", "Before", "After")) |>
+    mutate(Dist.time = factor(Dist.time, levels = c("Before", "After"))) |>
+    mutate(Dist = forcats::fct_relevel(Dist, "Before")) |>
+    ggplot(aes(y = median, x = Dist2, colour = Dist3, shape = cummulative)) +
+    geom_rect(
+      data = before_underlay_band,
+      aes(ymin = lower, xmin = -Inf, ymax = upper, xmax = Inf),
+      fill = "#d6d6d6",
+      inherit.aes = FALSE
+    ) +
+    geom_pointrange(aes(ymin = lower, ymax = upper),
+      position = position_dodge(width = 0.5),
+      show.legend = FALSE) +
+    scale_shape_manual(values = c(16, 21)) +
+    scale_y_continuous("Seriatopora cover (%)", labels =  function(x) x*100) +
+    scale_x_discrete("Disturbance type",
+      breaks = c("Before", "Bleaching", "COTS", "Storms", "Disease", "Unknown"),
+      expand = c(0, 0.3)) +
+    scale_colour_manual("Disurbances",
+      breaks = dist_palette$lab,
+      values = dist_palette$color) +
+    theme_bw() +
+    theme(
+      axis.title.y = element_text(size = rel(1.25),
+        margin = margin(r = 1, unit = "char")),
+      axis.title.x = element_text(size = rel(1.25),
+        margin = margin(t = 1, unit = "char")),
+      axis.text.y = element_text(size = rel(1.0)),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      strip.background = element_rect(fill = "#95b8d1"),
+      strip.text = element_text(size = rel(1.25))) +
+    facet_grid(A_SECTOR ~ SHELF,
+      scales = "free",
+      labeller = label_wrap_gen(width = 12, multi_line = TRUE)
+    )
+  p
+}
+## ----end
+
+## ---- brm_calc_effect_function
+brm_calc_effect <- function(cellmeans_brm, GBR = FALSE) {
+  if (GBR) {
+     cellmeans_brm |>
+        mutate(Dist = Dist3) |> 
+        mutate(Values = Pred) |>
+        nest(.by = c(.draws)) |>
+        mutate(eff = map(
+          .x = data,
+          .f = ~ before_vs_afters(.x)
+        )) |>
+        dplyr::select(-data) |>
+        unnest(c(eff)) |> 
+        mutate(cummulative = ifelse(str_length(Dist) > 1, TRUE, FALSE)) |>
+        mutate(Dist3 = Dist) |> 
+        separate_longer_position(Dist, width = 1, keep_empty = TRUE) 
+  } else {
+    cellmeans_brm |>
+      mutate(Values = Pred,
+        Dist =  Dist3) |>
+      nest(.by = c(A_SECTOR, SHELF, .draws)) |>
+      mutate(eff = map(
+        .x = data,
+        .f = ~ before_vs_afters(.x)
+      )) |>
+      dplyr::select(-data) |>
+      unnest(c(eff)) |>
+      mutate(Dist2 = Dist) |>
+      mutate(number_of_dist = str_length(Dist2)) |> 
+      mutate(cummulative = ifelse(str_length(Dist2) > 1, TRUE, FALSE)) |> 
+      separate_longer_position(Dist2, width = 1, keep_empty = TRUE) 
+  }
+}
+## ----end
+
+
+## ---- brm_calc_effect_function
+brm_calc_effect_hier <- function(cellmeans_brm) {
+  cellmeans_brm |>
+    mutate(Values = value) |>
+    nest(.by = c(A_SECTOR, SHELF, .draws)) |>
+    mutate(eff = map(
+      .x = data,
+      .f = ~ before_vs_afters(.x)
+    )) |>
+    dplyr::select(-data) |>
+    unnest(c(eff)) 
+}
+## ----end
+
+## ---- brm_effects_plot
+brm_effects_plot <- function(eff_brm) {
+  dist_palette <- dist_palette |>
+    filter(lab != "Before") |>
+    droplevels()
+
+  eff_brm |>
+    mutate(Dist = forcats::fct_relevel(Dist, "b", "c", "s", "u", "d")) |>
+    mutate(A_SECTOR = factor(A_SECTOR,
+      levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+      labels = c(
+        "Cape Grenville", "Cooktown Lizard", "Cairns",
+        "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
+      )
+    ),
+    SHELF =  factor(SHELF, levels = c("I", "M", "O"), labels = c("Inshore", "Midshelf", "Offshore")))|> 
+    ## ggplot(aes(x = Values, y = Dist2, group = Dist, shape = cummulative)) +
+    ggplot(aes(x = Values, y = Dist2, group = Dist, shape = factor(number_of_dist))) +
+    geom_vline(xintercept = 1, linetype = "dashed") +
+    ## stat_slabinterval(aes(color = Dist, point_size = number_of_dist),
+    ## stat_summary(geom = "point", aes(color = Dist, size = after_stat(number_of_dist)), fun = mean,
+    ##   position = position_dodge(width = 0.5, preserve = "total")) +
+    ## geom_point(data = eff_summ_brm_summary,
+    ##   aes(x = Mean, color = Dist, shape = cummulative, size = number_of_dist),
+    ##   position = position_dodge(width = 0.5, preserve = "total")) +
+    stat_slabinterval(aes(color = Dist, point_size = number_of_dist),
+      position = position_dodge(width = 0.5, preserve = "total"),
+      height = 0,
+      fill = "white", 
+      ## point_size = 0,
+      show.legend = FALSE) +
+    scale_point_size_continuous(range =  c(2, 4)) +
+    ## scale_size_binned(breaks = c(1, 2, 3)) +
+    ## scale_size_binned(breaks = c(1, 3), limits = c(1,3), range = c(0.5, 10)) +
+    ## scale_shape_manual(breaks = c(FALSE, TRUE), values = c(16, 21)) +
+    scale_shape_manual(breaks = c(1, 2, 3), values = c(16, 21, 23)) +
+    scale_x_continuous("Effect size (% change in Seriatopora cover after disturbance)",
+      trans = scales::log2_trans(),
+      labels = function(x) round(100*(x-1), 2),
+      expand = c(0, 0),
+      ## breaks = c(1 / 200, 1 / 50, 1 / 20, 1 / 10, 1 / 5, 0.3, 1 / 2, 1, 2, 3, 6),
+      breaks = c(1 / 200, 1 / 50, 1/20, 1 / 10, 1 / 4, 1 / 2, 1, 2, 4, 10),
+      #limits = c(0.001, 10)
+      ) +
+    scale_colour_manual("Disurbances",
+      breaks = dist_palette$lab,
+      values = dist_palette$color) +
+    scale_y_discrete("Disturbance type",
+      breaks = c("b", "c", "s", "u", "d"),
+      labels = c("Bleaching", "COTS", "Storms", "Unknown", "Disease"),
+      expand = c(0, 0.3)) +
+    theme_bw() +
+    theme(axis.title.y = element_text(size = rel(1.25), margin = margin(r = 1, unit = "char")),
+      axis.title.x = element_text(size = rel(1.25), margin = margin(t = 1, unit = "char")),
+      axis.text.y = element_text(size = rel(1.0)),
+      strip.background = element_rect(fill = "#95b8d1"),
+      strip.text = element_text(size = rel(1.25))) +
+    facet_grid(A_SECTOR ~ SHELF,
+      scales = "free",
+      labeller = label_wrap_gen(width = 12, multi_line = TRUE)
+    ) +
+    coord_cartesian(clip = "on", xlim = c(0.001, 11))
+}
+## ----end
+
+## ---- brm_effects_plot_gbr
+brm_effects_plot_gbr <- function(eff_brm, height = 1.5, p = 0.1, dist_order = NULL, label_offset = 0.4) {
+
+  if (is.null(dist_order)) {
+    dist_order <- tribble(
+      ~levels, ~labels,
+      "b",     "Bleaching",
+      "c",     "COTS",
+      "s",     "Storms",
+      "u",     "Unknown",
+      "d",     "Disease"
+    )
+  }
+  my_density <- function(x, p) {
+    D <- density(log(x))
+    exp(as.vector(D$x[D$y > p][1]))
+  }
+
+  eff_brm_lab <- eff_brm |>
+    dplyr::select(-.draws) |>
+    group_by(Dist) |>
+    summarise_draws(
+      median,
+      HDInterval::hdi,
+      D1 = ~ my_density(., p),
+      D = ~ quantile(., prob = 0.05, names = FALSE),
+      P = ~ mean(. < 1)
+    )
+
+  small_dist_palette <- dist_palette |>
+    filter(lab %in% c("b", "c", "d", "s", "u")) |>
+    droplevels() |>
+    rename(Dist = lab)
+
+  p <-
+    eff_brm |>
+    left_join(small_dist_palette) |>
+    ## mutate(Dist = forcats::fct_relevel(Dist, "b", "c", "s", "u", "d")) |>
+    mutate(Dist = forcats::fct_relevel(Dist, dist_order$levels)) |>
+    ggplot(aes(x = Values, y = Dist)) +
+    geom_vline(xintercept = 1, linetype = "dashed") +
+    stat_slabinterval(aes(color = Dist),
+      position = position_dodge(width = 0.3, preserve = "single"),
+      show.legend = FALSE) +
+    ## stat_slab(height = height/2) +
+    stat_slab(aes(fill = Dist, slab_alpha = after_stat(x) < 1),
+      fill_type = "segments",
+      height = height,
+      expand = FALSE, trim = TRUE, density = "bounded",
+      width = 0.95,
+      colour = "grey10", alpha = 0.4, show.legend = FALSE) +
+    geom_text(data = eff_brm_lab |>
+                ## mutate(Dist = factor(Dist, levels = c("b", "c", "s", "u", "d"))),
+                mutate(Dist = factor(Dist, levels = dist_order$levels)),
+      aes(y = as.numeric(as.factor(Dist))+0.2,
+        x = D1, #1.5,
+        label = sprintf("P[decline]==%0.3f", P)
+      ),
+      nudge_y =  0.2, hjust = 1, parse = TRUE) +
+    geom_label(
+      data = eff_brm_lab |>
+        ## mutate(Dist = factor(Dist, levels = c("b", "c", "s", "u", "d"))),
+        mutate(Dist = factor(Dist, levels = dist_order$levels)),
+      aes(
+        y = as.numeric(as.factor(Dist)) + label_offset,
+        x = median,
+        label = sprintf("%0.2f%%", 100 * (median - 1))
+      )
+    ) +
+    scale_fill_viridis_d() +
+    scale_colour_viridis_d() +
+    scale_slab_alpha_discrete(range = c(0.2, 0.7))+
+    scale_x_continuous("Effect size (% change in Seriatopora cover after disturbance)",
+      trans = scales::log2_trans(),
+      labels = function(x) round(100*(x-1), 2),
+      expand = c(0, 0),
+      breaks = c(1 / 200, 1 / 50, 1/20, 1 / 10, 1 / 4, 1 / 2, 1, 2, 4, 10),
+      ) +
+    scale_y_discrete("Disturbance type",
+      ## breaks = c("b", "c", "s", "u", "d"),
+      ## labels = c("Bleaching", "COTS", "Storms", "Unknown", "Disease"),
+      breaks = dist_order$levels,
+      labels = dist_order$labels,
+      expand = c(0, 0.3)) +
+    theme_bw() +
+    theme(axis.title.y = element_text(size = rel(1.25), margin = margin(r = 1, unit = "char")),
+      axis.title.x = element_text(size = rel(1.25), margin = margin(t = 1, unit = "char")),
+      axis.text.y = element_text(size = rel(1.25))) +
+    coord_cartesian(clip = "on", xlim = c(0.001, 11))
+  p
+}
+## ----end

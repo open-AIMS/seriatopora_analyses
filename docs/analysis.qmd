@@ -1,5 +1,5 @@
 ---
-title: LTMP Seriatopora 
+title: LTMP Seriatopora - data analysis 
 author: "Murray Logan"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 format: 
@@ -23,14 +23,17 @@ output_dir: "docs"
 ---
 
 ```{r chunks, results='markdown', eval=TRUE, echo = FALSE}
+assignInNamespace('.sep.label',  "^\\ *(#|--)+\\s*(@knitr|----+)(.*?)-*\\s*$", ns='knitr')
+
 knitr::read_chunk("../R/helper_functions.R") 
 knitr::read_chunk("../R/00_main.R")
-knitr::read_chunk("../R/02_prepare_paths.R")
-knitr::read_chunk("../R/10_process_data.R")
-knitr::read_chunk("../R/31_prepare_data.R")
 knitr::read_chunk("../R/32_eda.R")
 knitr::read_chunk("../R/33_fit_models_7.1_raw.R")
-knitr::read_chunk("../R/33_fit_models_7.1_glmmTMB.R")
+knitr::read_chunk("../R/33_fit_models_1.1.R")
+knitr::read_chunk("../R/33_fit_models_1.5.R")
+knitr::read_chunk("../R/33_fit_models_1.6.R")
+## knitr::read_chunk("../R/33_fit_models_7.1_glmmTMB.R")
+
 ```
  
 # Preparations
@@ -52,571 +55,16 @@ knitr::read_chunk("../R/33_fit_models_7.1_glmmTMB.R")
 #| eval: true
 ```
 
-```{r}
-#| label: setup
-#| results: hide
-#| eval: false
-#| echo: false
-#| cache: false
-#| message: false
-#| warnings: false
-#| output: false
-```
+This follows on from <preparation.html>
 
-- Prepare paths
-
-```{r}
-#| label: prepare_paths
-#| results: markup
-#| eval: true
-#| cache: false
-```
-
-# Load data
-
-## Benthic data
-
-```{r}
-#| label: read_data_1
-#| results: markup
-#| eval: true
-#| echo: true
-#| cache: true
-```
-```{r}
-#| label: glimpse_data_1
-#| results: markup
-#| eval: true
-#| echo: true
-#| dependson: read_data_1
-```
-
-I will restrict the data just to the Seriatopora (`COMP_2021` of `G_SER`)
-
-```{r}
-#| label: ser_only
-#| results: markup
-#| eval: true
-#| echo: true
-#| cache: true
-#| dependson: read_data_1
-```
- 
-Having read the data in and subset to just the Seriatopora, I will now
-save the data.
-
-```{r}
-#| label: save_data_1
-#| results: markup
-#| eval: true
-#| echo: true
-#| cache: true
-#| dependson: ser_only
-```
-
-## Disturbance lookup
-
-```{r}
-#| label: read_lookup
-#| results: markup
-#| eval: true
-#| echo: true
-#| cache: true
-```
-```{r}
-#| label: save_data_2
-#| results: markup
-#| eval: true
-#| echo: true
-#| cache: true
-#| dependson: read_lookup
-```
-
-# Question 2 - impacts of disturbances
-
-```{r}
-#| label: load_data_3
-#| results: markup
-#| eval: true
-#| echo: true
-#| cache: true
-#| dependson: c(save_data_1, save_data_2)
-```
-
-## Process data
-
-
-1. We need to join the disturbance data to the benthic data. To do so,
-   we need to determine what fields they have in common.
-   ```{r}
-   #| label: common_fields
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: true
-   #| dependson: load_data_3
-   ```
-
-   ::: {.callout-note}
-
-   Note, the above has only identified those fields that have the same
-   name. In addition to these, the fields `cREPORT_YEAR` (benthic
-   data) and `year` (lookup) are the same information.
-   
-   :::
-
-   ```{r}
-   #| label: join_lookup
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: true
-   #| dependson: common_fields
-   #| warning: true
-   #| message: true
-   ```
-   ::: {.callout-important}
-   
-   The warning indicates that:
-   - row 4716 of the benthic data is matched by multiple rows of the
-   disturbance data
-   - row 370 of the disturbance data is matched by multiple rows of
-   the benthic data
-   
-   The above warning only flags the first instance of such an issue -
-   there may well be more. We need to address why this is the case
-   before going any further.
-   
-   :::
-
-2. Explore why the join triggered a warning
-   
-   Lets look at row 4716 of the benthic data and see what
-   spatio-temporal unit it represents
-   
-   ```{r}
-   #| label: explore_join_warning_1
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: true
-   #| dependson: join_lookup
-   ```
-   And now what disturbance data this spatio-temporal unit represents.
-
-   ```{r}
-   #| label: explore_join_warning_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: true
-   #| dependson: join_lookup
-   ```
-   Ah - multiple disturbances in a single year! This is intentional,
-   but still requires some thought and action.
-
-3. In preparation for attempting to address the above issue, lets
-   highlight a couple of instances that we can use to assess whether
-   we have corrected the issue.  These will be:
-   - `Pompey Reef No.1`
-   - `Arlington Reef`
-
-   ```{r}
-   #| label: explore_join_warning_3
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: true
-   #| dependson: join_lookup
-   ```
-   - Dist.number 1, does not have a Before
-   - Dist.time == "Before", Dist.number == 2 has DISTURBANCE_TYPE of "n"
-   - Before (n), During (s), After (u)
-
-   ```{r}
-   #| label: explore_join_warning_4
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: true
-   #| dependson: join_lookup
-   ```
-   
-   - Dist.time == "Before" for Dist.number == 1 is a "n"
-   - Dist.time == "After" for Dist.number == 1 has two rows
-   - Dist.number == 2, Before, During and After all have different
-     DISTURBANCE_TYPE (n, d, b)
-4. Perform some initial tests. In this step, a series of tests will be
-   performed. Each of the tests will add a flag field to the data to
-   help identify instances where the test has failed. The following
-   list describes each of the tests, the name of the flag added and
-   the value given to the flag in the event of a fail.
-
-   - for each reef disturbance sequence number flag cases where:
-     - there are no "Before" cases (`before_flag="no before"`)
-     - there are more than one "Before" case (`before_flag="multiple before"`)
-     - there are no "After" cases (`after_flag="no after"`)
-     - there are "After" cases with Disturbance Types of "n" (`flag_n="after disturb n"`)
-     - the cover is higher after than before (`cover_flag="cover increased"`)
-
-   ```{r}
-   #| label: before_after_tests
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   ```
-
-   ::: {.callout-important collapse="true"}
-   ### Instances where there are no "Before" cases
-
-   
-   ```{r}
-   #| label: before_after_tests_no_before
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ``` 
-   :::
-   
-   ::: {.callout-important collapse="true"}
-
-   ### Instances where there are multiple "Before" cases
-
-   ```{r}
-   #| label: before_after_tests_multiple_before
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ```
-   :::
-
-   ::: {.callout-important collapse="true"}
-
-   ### Instances where there are no "After" cases
-
-   ```{r}
-   #| label: before_after_tests_no_after
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ```
-   :::
-
-   ::: {.callout-important collapse="true"}
-
-   ### Instances where the After Disturbance Type is "n"
-
-   ```{r}
-   #| label: before_after_tests_n_after
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ```
-   :::
-
-   ::: {.callout-important collapse="true"}
-
-   ### Instances where cover was greater after than before
-
-   ```{r}
-   #| label: before_after_tests_cover_greater_after
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ```
-   :::
-
-5. Generate a set of cases to exclude from the lookup, based on the
-   above tests.
-
-```{r}
-#| label: make_excludes
-#| results: markup
-#| eval: true
-#| echo: true
-#| cache: false
-#| dependson: join_lookup
-```
-
-5. Process the disturbance lookup data:
-   1. exclude cases that do not have a disturbance type
-   2. exclude cases where the disturbance number is 0 (these represent
-      recovery from a disturbance that occurred prior to the start of
-      sampling and therefore there is not "Before")
-   3. exclude cases where the disturbance time is considered
-      "Recovery" - for this question, we are interested in the
-      difference between before and after (not during)
-   4. exclude cases where the disturbance type is not considered "Pre"
-   5. exclude all cases that were flagged in any of the tests above
-   6. pivot the lookup wider so that each disturbance type has its own
-      field. This will ensure that each reef/disturbance time has a
-      single row and thus will join to the benthic data without a fuss
-   
-   ```{r}
-   #| label: process_lookup
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: true
-   #| dependson: join_lookup
-   ```
-
-6. Attempt to join benthic and disturbance data
-
-   ```{r}
-   #| label: join_lookup_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: true
-   #| dependson: common_fields
-   #| warning: true
-   #| message: true
-   ```
-7. Before going any further, we should also add some derived variables
-
-   ```{r}
-   #| label: add_derived
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: true
-   #| dependson: common_fields
-   #| warning: true
-   #| message: true
-   ```
-
-8. Having now joined the disturbance data to the benthic data, we need
-   to perform the tests again.
-   For each reef disturbance sequence number flag cases where
-
-     - there are no "Before" cases (`before_flag="no before"`)
-     - there are more than one "Before" case (`before_flag="multiple before"`)
-     - there are no "After" cases (`after_flag="no after"`)
-     - there are "After" cases with Disturbance Types of "n" (`flag_n="after disturb n"`)
-     - the cover is higher after than before (`cover_flag="cover increased"`)
-
-   ```{r}
-   #| label: before_after_tests_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| warning: true
-   #| message: true
-   ```
-
-   ::: {.callout-important collapse="true"}
-
-   ### Instances where there are no "Before" cases
-
-   ```{r}
-   #| label: before_after_tests_no_before_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ``` 
-
-   I looked into this for North Direction Island (first on the list),
-   and although the lookup has before listed for 1994, the benthic
-   data only starts in 1995.
-
-   ```{r}
-   #| label: north_direction_island
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| column: screen
-   options(width = 250)
-   old_data <- data
-   get(load(file = "../data/primary/data.RData")) |> 
-     filter(AIMS_REEF_NAME == "North Direction Island", SITE_NO == 1, TRANSECT_NO == 1) |>
-       as.data.frame() |>
-       head()
-   options(width = 80)
-   data <- old_data
-   ```
-
-   ```{r}
-   #| label: north_direction_island_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| column: screen
-   options(width = 250)
-   lookup |> filter(REEF == "North Direction Island") |> as.data.frame() |> head()
-   options(width = 80)
-   ```
-
-   :::
-
-
-   ::: {.callout-important collapse="true"}
-
-   ### Instances where there are multiple "Before" cases
-
-   ```{r}
-   #| label: before_after_tests_multiple_before_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ```
-   :::
-
-
-   ::: {.callout-important collapse="true"}
-
-   ### Instances where there are no "After" cases
-
-   ```{r}
-   #| label: before_after_tests_no_after_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ```
-
-   I looked into this for No Name Reef, Disturbance number 2.
-   According to the disturbance lookup, "After" should be 2007 -
-   however the benthic data does not have a 2007 for Site 2 transect
-   1.
-   
-   ```{r}
-   #| label: no_name_reef
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| column: screen
-   options(width = 250)
-   old_data <- data
-   data |>
-       filter(AIMS_REEF_NAME == "No Name Reef", SITE_NO == 2, TRANSECT_NO == 1) |>
-     as.data.frame()
-   
-   get(load(file = "../data/primary/data.RData")) |> 
-     filter(AIMS_REEF_NAME == "No Name Reef", SITE_NO == 2, TRANSECT_NO == 1) |>
-       as.data.frame()
-   options(width = 80)
-   data <- old_data
-   ```
-  
-   ```{r}
-   #| label: no_name_reef_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| column: screen
-   options(width = 250)
-   lookup |> filter(REEF == "No Name Reef", Dist.number == 2) |> as.data.frame() 
-   options(width = 80)
-   ```
-   :::
-
-
-   ::: {.callout-important collapse="true"}
-
-   ### Instances where the After Disturbance Type is "n"
-
-   ```{r}
-   #| label: before_after_tests_n_after_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ```
-
-   :::
-
-
-   ::: {.callout-important collapse="true"}
-
-   ### Instances where cover was greater after than before
-   
-   These occur because the disturbance lookup is defined at a reef
-   level, whereas this test is being conducted at a transect level.
-   
-   ```{r}
-   #| label: before_after_tests_cover_greater_after_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   #| column: screen
-   ```
-   :::
-
-9. We will now use these tests as a basis for exclusions from the
-   benthic data. Note, I will not exclude the cases in which cover has
-   increased after.
-
-   ```{r}
-   #| label: make_excludes_2
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   ```
-
-   ```{r}
-   #| label: exclude_data
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   ```
-9. Encode disturbance types
-
-   ```{r}
-   #| label: encode_disturbances
-   #| results: markup
-   #| eval: true
-   #| echo: true
-   #| cache: false
-   #| dependson: join_lookup
-   ```
- 
-## Exploratory data analyses
+# Exploratory data analyses
 
 ```{r}
 #| label: q2_retrieve_data
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: false
+#| cache: true
 ```
  
 ::: {.panel-tabset}
@@ -628,7 +76,7 @@ save the data.
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: false
+#| cache: true
 
 ```
 
@@ -647,7 +95,7 @@ inappropriate from a modelling perspective. Notice that many of the
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: false
+#| cache: true
 #| fig-width: 12
 #| fig-height: 12
 ```
@@ -659,7 +107,7 @@ inappropriate from a modelling perspective. Notice that many of the
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: false
+#| cache: true
 #| fig-width: 12
 #| fig-height: 12
 ```
@@ -671,40 +119,43 @@ inappropriate from a modelling perspective. Notice that many of the
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: false
+#| cache: true
 #| fig-width: 12
 #| fig-height: 12
 ```
 
 :::
 
-## Analyses
+
+# Analyses
 
 ```{r}
 #| label: q2_7_1_raw_prepare_data
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: false
-
+#| cache: true
 ```
 
+<!--
+## Intercept only models
 
 ::: {.panel-tabset}
+
 ### Raw summaries
 
 ::: {.panel-tabset}
 
 #### Cellmeans
+
 ```{r}
 #| label: 7_1_raw_cellmeans
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: false
+#| cache: true
 #| fig-width: 12
 #| fig-height: 12
-
 ```
 
 #### Effects
@@ -714,18 +165,1395 @@ inappropriate from a modelling perspective. Notice that many of the
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: false
+#| cache: true
 #| fig-width: 12
 #| fig-height: 12
-
 ```
-
-
 
 :::
 
 ### glmmTMB
+ 
+:::: {.panel-tabset}
 
+#### Fit model
+
+```{r}
+#| label: q2_glmmTMB_fitted_1.1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+#### Model validation
+
+```{r}
+#| label: q2_glmmTMB_validation_1.1
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+#### Summaries
+
+```{r}
+#| label: g2_glmmTMB_summary_1.1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+```{r}
+#| label: g2_glmmTMB_summary_1.1_print
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+#### Partial effects
+
+```{r}
+#| label: g2_glmmTMB_parial_effects_1.1
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+::::
+
+### brms
+ 
+:::: {.panel-tabset}
+
+#### Fit model
+
+```{r}
+#| label: q2_brm_fitted_1.1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+#### MCMC diagnostics
+
+```{r}
+#| label: q2_brm_trace_1.1a
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: false
+```
+
+![](analysis_files/figure-html/stan_trace_brm_1.1.png)
+![](analysis_files/figure-html/stan_ac_brm_1.1.png)
+![](analysis_files/figure-html/stan_ess_brm_1.1.png)
+
+#### Model validation
+
+```{r}
+#| label: q2_brm_validation_1.1a
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: false
+```
+
+![](analysis_files/figure-html/pcc_brm_1.1.png)
+
+#### DHARMa residuals
+
+```{r}
+#| label: q2_brm_dharma_1.1a
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: false
+```
+
+![](analysis_files/figure-html/dharma_brm_1.1.png)
+
+#### Summaries
+
+```{r}
+#| label: q2_brm_summary_1.1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: false
+```
+ 
+```{r}
+#| label: q2_brm_summary_1.1_print
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+```
+ 
+#### Partial Effects
+
+```{r}
+#| label: q2_brm_partial_1.1
+#| results: markup
+#| eval: false
+#| echo: !expr c(1,2,3,4,8,9)
+#| cache: false
+```
+
+![](analysis_files/figure-html/partial_brm_1.1.png)
+
+::::
+
+### INLA
+
+:::: {.panel-tabset}
+
+#### Prepare data
+
+```{r}
+#| label: q2_inla_prepare_1.1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+#### Fit model
+
+```{r}
+#| label: q2_inla_fitted_1.1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+#### Model diagnostics
+
+```{r}
+#| label: q2_inla_diagnostics_1.1a
+#| results: markup
+#| eval: false
+#| echo: !expr c(1,3:9)
+#| cache: false
+```
+
+![](analysis_files/figure-html/diagnostics1a_inla_1.1.png)
+
+```{r}
+#| label: q2_inla_diagnostics_1.2a
+#| results: markup
+#| eval: false
+#| echo: !expr c(1:5, 9:20, 22)
+#| cache: false
+```
+
+![](analysis_files/figure-html/diagnostics1b_inla_1.1.png)
+
+#### DHARMa residuals
+
+```{r}
+#| label: q2_inla_dharma_1.1a
+#| results: markup
+#| eval: false
+#| echo: !expr c(1:6, 8:10)
+#| cache: false
+```
+
+![](analysis_files/figure-html/dharma_inla_1.1.png)
+
+
+#### Summaries
+
+```{r}
+#| label: q2_inla_summary_1.1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: false
+```
+ 
+```{r}
+#| label: q2_inla_summary_1.1_print
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+```
+ 
+#### Partial Effects
+
+```{r}
+#| label: q2_inla_partial_1.1
+#| results: markup
+#| eval: false
+#| echo: !expr c(1:14, 16:17)
+#| cache: false
+```
+
+![](analysis_files/figure-html/partial_inla_1.1.png)
+
+
+::::
+
+### Comparisons
+
+:::: {.panel-tabset}
+
+#### Tabular
+
+```{r}
+#| label: q2_comparison_table_1.1_print
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+```
+
+#### Graphical
+
+```{r}
+#| label: q2_comparison_plot_1.1
+#| results: markup
+#| eval: false
+#| echo: !expr c(1:20, 24:25)
+#| cache: false
+```
+
+![](analysis_files/figure-html/comparison_plot_1.1.png)
+
+::::
 
 :::
-  
+
+-->
+ 
+## Full model (some as random effects)
+
+```{r}
+#| label: q2_data_1.5
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+```{r}
+#| label: q2_prepare_data_1.5
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+::: {.panel-tabset}
+
+### Raw summaries
+
+::: {.panel-tabset}
+
+#### Cellmeans
+
+![](analysis_files/figure-html/partial_raw_1.5.png)
+ 
+```{r}
+#| label: q2_raw_fitted_1.5
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+#| fig-width: 12
+#| fig-height: 12
+```
+
+:::
+
+### glmmTMB
+ 
+:::: {.panel-tabset}
+
+#### Fit model
+
+```{r}
+#| label: q2_glmmTMB_fitted_1.5
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+#### Model validation
+
+```{r}
+#| label: q2_glmmTMB_validation_1.5
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+```{r}
+#| label: q2_glmmTMB_validation_1.5
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### Summaries
+
+```{r}
+#| label: q2_glmmTMB_summary_1.5_print
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+```
+
+```{r}
+#| label: q2_glmmTMB_summary_1.5
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: q2_glmmTMB_summary_1.5_print
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### Partial plots
+
+![](analysis_files/figure-html/partial_glmmTMB_1.5a.png)
+![](analysis_files/figure-html/partial_glmmTMB_1.5b.png)
+
+```{r}
+#| label: q2_glmmTMB_partial_effects_1.5
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::
+
+### BRMS
+ 
+:::: {.panel-tabset}
+
+#### Fit model
+
+```{r}
+#| label: q2_brm_fitted_1.5
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+#### MCMC diagnostics 
+
+![Trace plots diagnostics](analysis_files/figure-html/stan_trace_brm_1.5.png){#fig-trace_plots_brm_1_5}
+![Autocorrelation plot diagnotists](analysis_files/figure-html/stan_ac_brm_1.5.png)
+![Rhat and effective sample size diagnostics](analysis_files/figure-html/stan_ess_brm_1.5.png)
+
+```{r}
+#| label: q2_brm_trace_1.1a
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### Model validation
+
+![](analysis_files/figure-html/pcc_brm_1.5.png)
+
+```{r}
+#| label: q2_brm_validation_1.5
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### DHARMa residuals
+
+![](analysis_files/figure-html/dharma_brm_1.5.png)
+
+```{r}
+#| label: q2_brm_dharma_1.5a
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### Summaries
+
+```{r}
+#| label: q2_brm_summary_1.5_print
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+```
+
+```{r}
+#| label: q2_brm_summary_1.5
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: q2_brm_summary_1.5_print
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### Partial plots
+
+::::: {.panel-tabset}
+
+##### re_formula = NULL
+
+![Modelled estimates of Seriatopora cover conditional on Sector/Shelf and each disturbance type. Points represent posterior medians and intervals represent 95% credibility intervals.  Closed symbols indicate sole disturbance events, open symbols indicate multiple disturbance events.  The grey band extends from the credibility intervals of the Before cover estimates.](analysis_files/figure-html/partial_brm_1.5_type_1.png)
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_partial_effects_1.5_type_1
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_generate_newdata
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_generate_cellmeans_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_partial_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+
+##### re_formula = NA
+
+![Modelled estimates of Seriatopora cover conditional on Sector/Shelf and each disturbance type. Points represent posterior medians and intervals represent 95% credibility intervals.  Closed symbols indicate sole disturbance events, open symbols indicate multiple disturbance events.  The grey band extends from the credibility intervals of the Before cover estimates.](analysis_files/figure-html/partial_brm_1.5_type_2.png)
+<!--
+![](analysis_files/figure-html/partial_brm_1.5b_pretty_type_2.png)
+![](analysis_files/figure-html/partial_brm_1.5a_type_2.png)
+-->
+
+This type is not appropriate as the estimates are driven only by the
+fixed effects and thus there are no sector/shelf variations.
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_partial_effects_1.5_type_2
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_generate_newdata
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_generate_cellmeans_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_partial_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+##### re_formula = ~(1| SecShelf:(s+b+c+d+u))
+
+![Modelled estimates of Seriatopora cover conditional on Sector/Shelf and each disturbance type. Points represent posterior medians and intervals represent 95% credibility intervals.  Closed symbols indicate sole disturbance events, open symbols indicate multiple disturbance events.  The grey band extends from the credibility intervals of the Before cover estimates.](analysis_files/figure-html/partial_brm_1.5_type_3.png)
+<!--
+![](analysis_files/figure-html/partial_brm_1.5b_pretty_type_3.png)
+![](analysis_files/figure-html/partial_brm_1.5a_type_3.png)
+-->
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_partial_effects_1.5_type_3
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_generate_newdata
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_generate_cellmeans_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_partial_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+:::::
+
+
+#### Contrasts - sector/shelf
+
+::::: {.panel-tabset}
+
+##### re_formula = NULL
+
+![Effect size (expressed as a percentage change in Seriatopora cover after disturbance) conditional on sector/shelf and disturbance type.  Points and intervals represent median and 95% credibility intervals of posteriors.  Solid symbols represent sole disturbances and open symbols represent multiple disturbances.](analysis_files/figure-html/contrasts_brm_1.5_type_1.png)
+<!--
+![](analysis_files/figure-html/contrasts_brm_1.5_pretty_type_1.png)
+-->
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_1.5_type_1
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_calc_effect_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+##### re_formula = NA
+
+![Effect size (expressed as a percentage change in Seriatopora cover after disturbance) conditional on sector/shelf and disturbance type.  Points and intervals represent median and 95% credibility intervals of posteriors.  Solid symbols represent sole disturbances and open symbols represent multiple disturbances.](analysis_files/figure-html/contrasts_brm_1.5_type_2.png)
+<!--
+![](analysis_files/figure-html/contrasts_brm_1.5_pretty_type_2.png)
+-->
+
+Again notice that each effect is the same across each sector/shelf
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_1.5_type_2
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_calc_effect_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+##### re_formula = ~(1| SecShelf:(s+b+c+d+u))
+
+![Effect size (expressed as a percentage change in Seriatopora cover after disturbance) conditional on sector/shelf and disturbance type.  Points and intervals represent median and 95% credibility intervals of posteriors.  Solid symbols represent sole disturbances and open symbols represent multiple disturbances.](analysis_files/figure-html/contrasts_brm_1.5_type_3.png)
+<!--
+![](analysis_files/figure-html/contrasts_brm_1.5_pretty_type_3.png)
+-->
+
+Note that his is the same result as for `re_formula = NULL`.
+
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_1.5_type_3
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_calc_effect_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+ 
+:::::
+
+#### Contrasts - GBR
+
+::::: {.panel-tabset}
+
+##### re_formula = NULL
+
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself and in combination with other disturbances) across the GBR.](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.5_type_1.png){#fig-contrasts_gbr_combined_disturbances_brm_1_5_type_1}
+<!-- 
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself and in combination with other disturbances) across the GBR.](analysis_files/figure-html/contrasts_gbr_combined_disturbances_pretty_brm_1.5_type_1.png){#fig-contrasts_gbr_combined_disturbances_brm_1_5_type_1}
+-->
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_gbr_1.5_type_1
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_generate_newdata
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_generate_cellmeans_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_calc_effect_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_gbr_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+
+::::::
+    
+##### re_formula = NA
+
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself and in combination with other disturbances) across the GBR.](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.5_type_2.png){#fig-contrasts_gbr_combined_disturbances_brm_1_5_type_2}
+<!--
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself and in combination with other disturbances) across the GBR.](analysis_files/figure-html/contrasts_gbr_combined_disturbances_pretty_brm_1.5_type_2.png){#fig-contrasts_gbr_combined_disturbances_brm_1_5_type_2}
+-->
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_gbr_1.5_type_2
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_generate_newdata
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_generate_cellmeans_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_calc_effect_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_gbr_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+##### re_formula = ~(1| SecShelf:(s+b+c+d+u))
+
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself and in combination with other disturbances) across the GBR.](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.5_type_3.png){#fig-contrasts_gbr_combined_disturbances_brm_1_5_type_3}
+<!--
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself and in combination with other disturbances) across the GBR.](analysis_files/figure-html/contrasts_gbr_combined_disturbances_pretty_brm_1.5_type_3.png){#fig-contrasts_gbr_combined_disturbances_brm_1_5_type_3}
+-->
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_gbr_1.5_type_3
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_generate_newdata
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_generate_cellmeans_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_calc_effect_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_gbr_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+:::::
+
+<!--
+#### Contrasts - GBR - combined disturbances
+
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself and in combination with other disturbances) across the GBR.](analysis_files/figure-html/contrasts_gbr_combined_disturbances_pretty_brm_1.5.png){#fig-contrasts_gbr_combined_disturbances_brm_1_5}
+ 
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself alone) across the GBR.](analysis_files/figure-html/contrasts_gbr_primary_disturbances_pretty_brm_1.5.png){#fig-contrasts_gbr_primary_disturbances_brm_1_5}
+
+```{r}
+#| label: q2_brm_contrasts_gbr_combined_1.5
+#| results: markup
+#| eval: false
+#| echo: true
+```
+-->
+
+:::
+
+:::
+ 
+
+
+## Full model (all as fixed effects)
+
+```{r}
+#| label: q2_data_1.6
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+```{r}
+#| label: q2_prepare_data_1.6
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+::: {.panel-tabset}
+
+### Raw summaries
+
+::: {.panel-tabset}
+
+#### Cellmeans
+
+![](analysis_files/figure-html/partial_raw_1.6.png)
+ 
+```{r}
+#| label: q2_raw_fitted_1.6
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+#| fig-width: 12
+#| fig-height: 12
+```
+
+:::
+
+### BRMS
+ 
+:::: {.panel-tabset}
+
+#### Fit model
+
+```{r}
+#| label: q2_brm_fitted_1.6
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: false
+```
+
+#### MCMC diagnostics
+
+![](analysis_files/figure-html/stan_trace_brm_1.6.png)
+![](analysis_files/figure-html/stan_ac_brm_1.6.png)
+![](analysis_files/figure-html/stan_ess_brm_1.6.png)
+
+```{r}
+#| label: q2_brm_trace_1.6
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### Model validation
+
+![](analysis_files/figure-html/pcc_brm_1.6.png)
+
+```{r}
+#| label: q2_brm_validation_1.6
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### DHARMa residuals
+
+![](analysis_files/figure-html/dharma_brm_1.6.png)
+
+```{r}
+#| label: q2_brm_dharma_1.6a
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### Summaries
+
+```{r}
+#| label: q2_brm_summary_1.6_print
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+```
+
+```{r}
+#| label: q2_brm_summary_1.6
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: q2_brm_summary_1.6_print
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+#### Partial plots - sector/shelf
+
+::::: {.panel-tabset}
+
+##### re_formula = NULL
+
+![Modelled estimates of Seriatopora cover conditional on Sector/Shelf and each disturbance type. Points represent posterior medians and intervals represent 95% credibility intervals.  Closed symbols indicate sole disturbance events, open symbols indicate multiple disturbance events.  The grey band extends from the credibility intervals of the Before cover estimates.](analysis_files/figure-html/partial_brm_1.6_type_1.png)
+<!--
+![](analysis_files/figure-html/partial_brm_1.6b_type_1.png)
+![](analysis_files/figure-html/partial_brm_1.6b.png)
+-->
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_partial_effects_1.6_type_1
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_generate_newdata
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_generate_cellmeans_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_partial_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+
+##### re_formula = NA
+
+![Modelled estimates of Seriatopora cover conditional on Sector/Shelf and each disturbance type. Points represent posterior medians and intervals represent 95% credibility intervals.  Closed symbols indicate sole disturbance events, open symbols indicate multiple disturbance events.  The grey band extends from the credibility intervals of the Before cover estimates.](analysis_files/figure-html/partial_brm_1.6_type_2.png)
+<!--
+![](analysis_files/figure-html/partial_brm_1.6b_type_2.png)
+-->
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_partial_effects_1.6_type_2
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_generate_newdata
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: brm_generate_cellmeans_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_partial_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+:::::
+
+#### Contrasts - sector/shelf
+
+::::: {.panel-tabset}
+
+##### re_formula = NULL
+
+![Effect size (expressed as a percentage change in Seriatopora cover after disturbance) conditional on sector/shelf and disturbance type.  Points and intervals represent median and 95% credibility intervals of posteriors.  Solid symbols represent sole disturbances and open symbols represent multiple disturbances.](analysis_files/figure-html/contrasts_brm_1.6_type_1.png)
+<!--
+![](analysis_files/figure-html/contrasts_brm_1.6_pretty_type_1.png)
+![](analysis_files/figure-html/contrasts_brm_1.6_pretty.png)
+-->
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_1.6_type_1
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_calc_effect_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+
+
+##### re_formula = NA
+
+![Effect size (expressed as a percentage change in Seriatopora cover after disturbance) conditional on sector/shelf and disturbance type.  Points and intervals represent median and 95% credibility intervals of posteriors.  Solid symbols represent sole disturbances and open symbols represent multiple disturbances.](analysis_files/figure-html/contrasts_brm_1.6_type_2.png)
+<!--
+![](analysis_files/figure-html/contrasts_brm_1.6_pretty_type_2.png)
+-->
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_1.6_type_2
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_calc_effect_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+:::::
+
+#### Contrasts - GBR
+
+::::: {.panel-tabset}
+
+##### re_formula = NULL
+
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself and in combination with other disturbances) across the GBR.](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.6_type_1.png)
+ 
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_gbr_1.6_type_1
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+And the functions called
+
+```{r}
+#| label: brm_calc_effect_hier_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_gbr_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+
+##### re_formula = NA
+
+![Effect size (percent change in Seriatopora cover) associated with each disturbance type (both by itself and in combination with other disturbances) across the GBR.](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.6_type_2.png)
+
+:::::: {.callout-note collapse="true"}
+
+###### Reveal codes
+
+```{r}
+#| label: q2_brm_contrasts_1.6_type_2
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: disturbance_palette
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+```{r}
+#| label: brm_effects_plot_gbr_function
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+::::::
+:::::
+::::
+
+:::
+ 
+
+:::{.column-screen-inset}
+
+::: {.callout-note collapse="true"}
+```{r}
+#| eval: false
+form <- bf(
+  n.points | trials(total.points) ~ 1 + (s + c + d + b + u) +
+    (1 | SecShelf:(s + c + d + b + u)) +
+    (1 | event) +
+    (1 | AIMS_REEF_NAME) +
+    (1 | Site) +
+    (1 | Transect),
+  family = "beta_binomial"
+)
+```
+:::
+
+:::: {.columns}
+::::: {.column width="32%"}
+**`re_form = NULL`**
+![](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.5_type_1.png){width=100%}
+:::::
+::::: {.column width="32%"}
+**`re_form = NA`**
+![](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.5_type_2.png){width=100%}
+:::::
+::::: {.column width="32%"}
+**`re_form = (1 | SecShelf:(s + c + d + b + u))`**
+![](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.5_type_3.png){width=100%}
+:::::
+::::
+
+::: {.callout-note collapse="true"}
+```{r}
+#| eval: false
+form <- bf(
+  n.points | trials(total.points) ~ SecShelf * (s + c + d + b + u) +
+    (1 | event) +
+    (1 | AIMS_REEF_NAME) +
+    (1 | Site) +
+    (1 | Transect),
+  family = "beta_binomial"
+)
+```
+:::
+
+:::: {.columns}
+::::: {.column width="32%"}
+**`re_form = NULL`**
+![](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.6_type_1.png){width=100%}
+:::::
+::::: {.column width="32%"}
+**`re_form = NA`**
+![](analysis_files/figure-html/contrasts_gbr_combined_disturbances_brm_1.6_type_2.png){width=100%}
+:::::
+::::
+
+:::
+

@@ -13,6 +13,7 @@ library(standist)
 library(inlatools)
 library(bayesplot)
 library(DT)
+library(modelsummary)
 ## ----end
 
 ## ---- loadFunctions

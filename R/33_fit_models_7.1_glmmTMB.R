@@ -10,6 +10,11 @@ data <- full_data
 ## Prepare data
 
 data <- full_data
+
+
+
+
+
 ## ---- q2_7_1_glmmTMB_prepare_data
 ## Focus on only the necessary variables
 load(file = "../data/processed/data_q2.R")

@@ -1,0 +1,841 @@
+---
+title: LTMP Seriatopora - data processing 
+author: "Murray Logan"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+format: 
+  html:
+    css: style.css
+    toc: true
+    toc-float: true
+    number-sections: true
+    number-depth: 3
+    embed-resources: true
+    code-fold: false
+    code-tools: true
+    code-summary: "Show the code"
+crossref:
+  fig-title: '**Figure**'
+  fig-labels: arabic
+  tbl-title: '**Table**'
+  tbl-labels: arabic
+engine: knitr
+output_dir: "docs"
+---
+
+```{r chunks, results='markdown', eval=TRUE, echo = FALSE}
+knitr::read_chunk("../R/helper_functions.R") 
+knitr::read_chunk("../R/00_main.R")
+knitr::read_chunk("../R/02_prepare_paths.R")
+knitr::read_chunk("../R/10_process_data.R")
+knitr::read_chunk("../R/31_prepare_data.R")
+## knitr::read_chunk("../R/32_eda.R")
+## knitr::read_chunk("../R/33_fit_models_7.1_raw.R")
+## knitr::read_chunk("../R/33_fit_models_1.1.R")
+## knitr::read_chunk("../R/33_fit_models_7.1_glmmTMB.R")
+```
+ 
+# Preparations
+
+- Load required packages
+```{r}
+#| label: loadLibraries
+#| eval: true
+#| message: false
+#| warnings: false
+#| output: false
+#| cache: false
+```
+ 
+- Load any helper functions
+
+```{r}
+#| label: loadFunctions
+#| eval: true
+```
+
+```{r}
+#| label: setup
+#| results: hide
+#| eval: false
+#| echo: false
+#| cache: false
+#| message: false
+#| warnings: false
+#| output: false
+```
+
+- Prepare paths
+
+```{r}
+#| label: prepare_paths
+#| results: markup
+#| eval: false
+#| cache: false
+```
+
+# Load data
+
+
+## Benthic data
+
+```{r}
+#| label: read_data_1
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+```{r}
+#| label: glimpse_data_1
+#| results: markup
+#| eval: true
+#| echo: true
+#| dependson: read_data_1
+```
+
+I will restrict the data just to the Seriatopora (`COMP_2021` of `G_SER`)
+
+```{r}
+#| label: ser_only
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| dependson: read_data_1
+```
+ 
+Having read the data in and subset to just the Seriatopora, I will now
+save the data.
+
+```{r}
+#| label: save_data_1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| dependson: ser_only
+```
+
+## Disturbance lookup
+
+```{r}
+#| label: read_lookup
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+```{r}
+#| label: save_data_2
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| dependson: read_lookup
+```
+
+# Question 2 - impacts of disturbances
+
+```{r}
+#| label: load_data_3
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+#| dependson: c(save_data_1, save_data_2)
+```
+
+## Process data
+
+
+1. We need to join the disturbance data to the benthic data. To do so,
+   we need to determine what fields they have in common.
+   ```{r}
+   #| label: common_fields
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: load_data_3
+   ```
+
+   ::: {.callout-note}
+
+   Note, the above has only identified those fields that have the same
+   name. In addition to these, the fields `cREPORT_YEAR` (benthic
+   data) and `year` (lookup) are the same information.
+   
+   :::
+
+   ```{r}
+   #| label: join_lookup
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: common_fields
+   #| warning: true
+   #| message: true
+   ```
+   
+   ::: {.callout-important}
+   
+   The warning indicates that:
+   - row 4716 of the benthic data is matched by multiple rows of the
+   disturbance data
+   - row 370 of the disturbance data is matched by multiple rows of
+   the benthic data
+   
+   The above warning only flags the first instance of such an issue -
+   there may well be more. We need to address why this is the case
+   before going any further.
+   
+   :::
+
+2. Explore why the join triggered a warning
+   
+   Lets look at row 4716 of the benthic data and see what
+   spatio-temporal unit it represents
+   
+   ```{r}
+   #| label: explore_join_warning_1
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   ```
+   And now what disturbance data this spatio-temporal unit represents.
+
+   ```{r}
+   #| label: explore_join_warning_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   ```
+   Ah - multiple disturbances in a single year! This is intentional,
+   but still requires some thought and action.
+
+3. In preparation for attempting to address the above issue, lets
+   highlight a couple of instances that we can use to assess whether
+   we have corrected the issue.  These will be:
+
+   - `Pompey Reef No.1`
+   - `Arlington Reef`
+
+   ```{r}
+   #| label: explore_join_warning_3
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   ```
+
+   - Dist.number 1, does not have a Before
+   - Dist.time == "Before", Dist.number == 2 has DISTURBANCE_TYPE of "n"
+   - Before (n), During (s), After (u)
+
+   ```{r}
+   #| label: explore_join_warning_4
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   ```
+
+   - Dist.time == "Before" for Dist.number == 1 is a "n"
+   - Dist.time == "After" for Dist.number == 1 has two rows
+   - Dist.number == 2, Before, During and After all have different
+     DISTURBANCE_TYPE (n, d, b)
+
+   There are numerous cases where `DISTURBANCE_TYPE` is `"n"`. This
+   should not be the case. For many of these, we can infer what they
+   should be based on the `Dist.time` field:
+    
+   - for each Reef/Dist.number, if `is.na(DISTURBANCE_TYPE)` or
+     `DISTURBANCE_TYPE == "n"` and `Dist.time == "After"` return a
+     value that concatenates all `DISTURBANCE_TYPE` for `Dist.time ==
+     "During"` when `DISTURBANCE_TYPE != "n"` (unless this is `""`, in
+     which case, return `"n"`)
+
+   ```{r}
+   #| label: correct_after_cumulative
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: false
+   ```
+     
+4. Perform some initial tests. In this step, a series of tests will be
+   performed. Each of the tests will add a flag field to the data to
+   help identify instances where the test has failed. The following
+   list describes each of the tests, the name of the flag added and
+   the value given to the flag in the event of a fail.
+  
+   - for each reef disturbance sequence number flag cases where:
+     - there are no "Before" cases (`before_flag="no before"`)
+     - there are more than one "Before" case (`before_flag="multiple
+       before"`)
+     - there are no "After" cases (`after_flag="no after"`)
+     - there are "After" cases with Disturbance Types of "n"
+       (`flag_n="after disturb n"`)
+     - the cover is higher after than before (`cover_flag="cover
+       increased"`)
+     
+     ```{r}
+     #| label: before_after_tests
+     #| results: markup
+     #| eval: true
+     #| echo: true
+     #| cache: true
+     #| dependson: join_lookup
+     ```
+
+
+   ::: {.callout-important collapse="true"}
+   ### Instances where there are no "Before" cases
+
+   ```{r}
+   #| label: before_after_tests_no_before
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: false
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+   :::
+
+   ::: {.callout-important collapse="true"}
+
+   ### Instances where there are multiple "Before" cases
+
+   ```{r}
+   #| label: before_after_tests_multiple_before
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: false
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+   :::
+
+   ::: {.callout-important collapse="true"}
+
+   ### Instances where there are no "After" cases
+
+   ```{r}
+   #| label: before_after_tests_no_after
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: false
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+   :::
+
+   ::: {.callout-important collapse="true"}
+
+   ### Instances where the After Disturbance Type is "n"
+
+   ```{r}
+   #| label: before_after_tests_n_after
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: false
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+   :::
+
+   ::: {.callout-important collapse="true"}
+
+   ### Instances where cover was greater after than before
+
+   ```{r}
+   #| label: before_after_tests_cover_greater_after
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: false
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+   :::
+
+
+5. Generate a set of cases to exclude from the lookup, based on the
+   above tests.
+
+```{r}
+#| label: make_excludes
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: false
+#| dependson: join_lookup
+```
+
+6. Process the disturbance lookup data:
+   1. split `DISTURBANCE_TYPE` cases that have string length greater
+      than 1 into separate rows per individual disturbance
+   1. exclude cases that do not have a disturbance type
+   2. exclude cases where the disturbance number is 0 (these represent
+      recovery from a disturbance that occurred prior to the start of
+      sampling and therefore there is not "Before")
+   3. exclude cases where the disturbance time is considered
+      "Recovery" - for this question, we are interested in the
+      difference between before and after (not during)
+   4. exclude cases where the disturbance type is not considered "Pre"
+   5. exclude all cases that were flagged in any of the tests above
+   6. pivot the lookup wider so that each disturbance type has its own
+      field. This will ensure that each reef/disturbance time has a
+      single row and thus will join to the benthic data without a
+      fuss. Values in these columns will either be 0 (this disturbance
+      did not affect the reef in this year) or greater than 0 (this
+      disturbance did affect the reef in this year). A value > 1
+      indicates that this disturbance type occurred more than once
+      during the disturbance time.
+   
+   ```{r}
+   #| label: process_lookup
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   ```
+
+7. Attempt to join benthic and disturbance data
+
+   ```{r}
+   #| label: join_lookup_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: common_fields
+   #| warning: true
+   #| message: true
+   ```
+   
+8. Before going any further, we should also add some derived variables
+
+   ```{r}
+   #| label: add_derived
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: common_fields
+   #| warning: true
+   #| message: true
+   ```
+
+   ```{r}
+   #| label: q2_data_view_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: false
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+
+
+8. Having now joined the disturbance data to the benthic data, we need
+   to perform the tests again.
+   For each reef disturbance sequence number flag cases where
+
+     - there are no "Before" cases (`before_flag="no before"`)
+     - there are more than one "Before" case (`before_flag="multiple before"`)
+     - there are no "After" cases (`after_flag="no after"`)
+     - there are "After" cases with Disturbance Types of "n" (`flag_n="after disturb n"`)
+     - the cover is higher after than before (`cover_flag="cover increased"`)
+
+   ```{r}
+   #| label: before_after_tests_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| warning: true
+   #| message: true
+   ```
+
+   ::: {.callout-important collapse="true"}
+
+   ### Instances where there are no "Before" cases
+
+   ```{r}
+   #| label: before_after_tests_no_before_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   #| column: screen
+   ``` 
+   
+   I looked into this for Havannah Island. The issue is that for
+   `P_CODE == "IN"` early years have a depth and later years to not..
+
+   ```{r}
+   #| label: havannah_island
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   old_data <- data
+   get(load(file = "../data/primary/data.RData")) |> 
+     filter(AIMS_REEF_NAME == "Havannah Island", SITE_NO == 1, TRANSECT_NO == 1) |>
+       as.data.frame() |>
+       head()
+   options(width = 80)
+   data <- old_data
+   ```
+
+   I looked into this for No Name Reef, and although the lookup has
+   before listed for 1999, the benthic data does not have this year.
+
+   ```{r}
+   #| label: no_name_island
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   old_data <- data
+   get(load(file = "../data/primary/data.RData")) |> 
+     filter(AIMS_REEF_NAME == "No Name Reef", SITE_NO == 1, TRANSECT_NO == 1) |>
+       as.data.frame() |>
+       head()
+   options(width = 80)
+   data <- old_data
+   ```
+
+   ```{r}
+   #| label: north_direction_island_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   lookup |> filter(REEF == "No Name Reef") |> as.data.frame() |> head()
+   options(width = 80)
+   ```
+
+   :::
+
+
+   ::: {.callout-important collapse="true"}
+
+   ### Instances where there are multiple "Before" cases
+
+   ```{r}
+   #| label: before_after_tests_multiple_before_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+   :::
+
+
+   ::: {.callout-important collapse="true"}
+
+   ### Instances where there are no "After" cases
+
+   ```{r}
+   #| label: before_after_tests_no_after_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+
+   I looked into this for Havannah Island, Disturbance number 2. This
+   is the same issue as the "No Before cases", it is because the early
+   years have a depth and the later years do not. The result is that
+   the before and afters do not have a matching pair.
+
+   ```{r}
+   #| label: havannah_reef
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   old_data <- data
+   get(load(file = "../data/primary/data.RData")) |> 
+     filter(AIMS_REEF_NAME == "Havannah Island", SITE_NO == 2, TRANSECT_NO == 1) |>
+       as.data.frame()
+   options(width = 80)
+   data <- old_data
+   ```
+
+   ```{r}
+   #| label: havannah_reef_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   lookup |>
+     filter(REEF == "Havannah Island", Dist.number == 2) |>
+     as.data.frame()
+   options(width = 80)
+   ```
+
+   I looked into this for No Name Reef, Disturbance number 2.
+   According to the disturbance lookup, "After" should be 2007.
+   However the benthic data does not have a 2007 for Site 2 transect 1.
+
+   ```{r}
+   #| label: no_name_reef
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   old_data <- data
+   data |>
+       filter(AIMS_REEF_NAME == "No Name Reef", SITE_NO == 2, TRANSECT_NO == 1) |>
+     as.data.frame()
+
+   get(load(file = "../data/primary/data.RData")) |> 
+     filter(AIMS_REEF_NAME == "No Name Reef", SITE_NO == 2, TRANSECT_NO == 1) |>
+       as.data.frame()
+   options(width = 80)
+   data <- old_data
+   ```
+
+   ```{r}
+   #| label: no_name_reef_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   lookup |>
+     filter(REEF == "No Name Reef", Dist.number == 2) |>
+     as.data.frame()
+   options(width = 80)
+   ```
+
+   I looked into this for Low Isles, Disturbance number 2. According
+   to the disturbance lookup, "After" should be 2011. However the
+   benthic data does not have a 2011 for Site 2 transect 1.
+
+   ```{r}
+   #| label: low_isles
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   old_data <- data
+   data |>
+       filter(AIMS_REEF_NAME == "Low Isles", SITE_NO == 3, TRANSECT_NO == 1) |>
+     as.data.frame()
+
+   get(load(file = "../data/primary/data.RData")) |> 
+     filter(AIMS_REEF_NAME == "Low Isles", SITE_NO == 3, TRANSECT_NO == 1) |>
+       as.data.frame()
+   options(width = 80)
+   data <- old_data
+   ```
+
+   ```{r}
+   #| label: low_isles_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   lookup |>
+     filter(REEF == "Low Isles", Dist.number == 2) |>
+     as.data.frame()
+   options(width = 80)
+   ```
+
+   :::
+
+
+   ::: {.callout-important collapse="true"}
+
+   ### Instances where the After Disturbance Type is "n"
+
+   ```{r}
+   #| label: before_after_tests_n_after_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+
+   :::
+
+
+   ::: {.callout-important collapse="true"}
+
+   ### Instances where cover was greater after than before
+   
+   These occur because the disturbance lookup is defined at a reef
+   level, whereas this test is being conducted at a transect level.
+   
+   ```{r}
+   #| label: before_after_tests_cover_greater_after_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   #| column: screen
+   ```
+  
+   I looked into Fitzroy Island. This is an interesting one... The
+   disturbance lookup has the Before and After cover values of 29.139
+   and 16.536 respectively. This is clearly a decline. However, if we
+   use the points and total points in the benthic data, the Before and
+   After cover values are (0/839 = 0) and (2/520 = 0.02)
+   respectively - an increase...
+  
+   ```{r}
+   #| label: fitzroy_island
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   old_data <- data
+   data |>
+       filter(P_CODE == "IN", AIMS_REEF_NAME == "Fitzroy Island", SITE_NO == 2, TRANSECT_NO == 1) |>
+     as.data.frame()
+
+   get(load(file = "../data/primary/data.RData")) |> 
+     filter(P_CODE == "IN", AIMS_REEF_NAME == "Fitzroy Island", SITE_NO == 2, TRANSECT_NO == 1, REPORT_YEAR %in% c(2011, 2015)) |>
+       as.data.frame()
+   options(width = 80)
+   data <- old_data
+   ```
+   
+   ```{r}
+   #| label: fitsroy_island_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   lookup |>
+     filter(REEF == "Fitzroy Island", Dist.number == 2) |>
+     as.data.frame()
+   options(width = 80)
+   ```
+
+   I looked into Feather Reef. This has the same issue as Fitzroy Island
+  
+   ```{r}
+   #| label: feather_reef
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   old_data <- data
+   data |>
+       filter(AIMS_REEF_NAME == "Feather Reef", SITE_NO == 1, TRANSECT_NO == 3, REPORT_YEAR %in% c(2010, 2012)) |>
+     as.data.frame()
+
+   get(load(file = "../data/primary/data.RData")) |> 
+     filter(AIMS_REEF_NAME == "Feather Reef", SITE_NO == 1, TRANSECT_NO == 3, REPORT_YEAR %in% c(2010, 2012)) |>
+       as.data.frame()
+   options(width = 80)
+   data <- old_data
+   ```
+   
+   ```{r}
+   #| label: feather_reef_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| column: screen
+   options(width = 250)
+   lookup |>
+     filter(REEF == "Feather Reef", Dist.number == 1) |>
+     as.data.frame()
+   options(width = 80)
+   ```
+
+   :::
+
+9. We will now use these tests as a basis for exclusions from the
+   benthic data. Note, I will not exclude the cases in which cover has
+   increased after.
+
+   ```{r}
+   #| label: make_excludes_2
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   ```
+
+   ```{r}
+   #| label: exclude_data
+   #| results: markup
+   #| eval: true
+   #| echo: true
+   #| cache: true
+   #| dependson: join_lookup
+   ```
+
+10. Encode disturbance types
+ 
+    ```{r}
+    #| label: encode_disturbances
+    #| results: markup
+    #| eval: true
+    #| echo: true
+    #| cache: true
+    #| dependson: join_lookup
+    ```
+
+    ```{r}
+    #| label: q2_view_data
+    #| results: markup
+    #| eval: true
+    #| echo: true
+    #| cache: true
+    #| dependson: join_lookup
+    #| column: screen
+    ```
+

@@ -1,11 +1,8 @@
-
 ## load the data
 ## ---- load_data_3
 load(file = "../data/primary/data.RData")
 load(file = "../data/primary/lookup.RData")
 ## ----end
-
-old_lookup <- lookup
 
 ## join the lookup to the data
 ## ---- common_fields
@@ -63,8 +60,8 @@ lookup |> dim()
 
 ## ---- explore_join_warning_3
 lookup |>
-        filter(REEF == "Pompey Reef No.1") |>
-        as.data.frame()
+  filter(REEF == "Pompey Reef No.1") |>
+  as.data.frame()
 ## ----end
 
 ## - Dist.number 1, does not have a Before
@@ -72,29 +69,67 @@ lookup |>
 ## - Before (n), During (s), After (u)
 ## ---- explore_join_warning_4
 lookup |>
-        filter(REEF == "Arlington Reef") |>
-        as.data.frame()
+  filter(REEF == "Arlington Reef") |>
+  as.data.frame()
 ## ----end
+
+
+## for each reef/Dist.number, if Dist.type == "Cumulative", look through the Dist.time == "During" and get unique DISTURBANCE_TYPE values
+
+## ---- correct_after_cumulative
+replace_disturbance <- function(DISTURBANCE_TYPE, Dist.time) {
+  val <- paste(DISTURBANCE_TYPE[Dist.time %in% c("During") & DISTURBANCE_TYPE != "n"], collapse = "")
+  val <- ifelse(str_length(val) == 1,
+    val,
+    str_replace_all(val, "n", "")
+  )
+  val <- ifelse(val == "", "n", val)
+  val
+}
+lookup <- lookup |>
+  nest_by(REEF, Dist.number) |>
+  mutate(data = list({
+    data |>
+      ## ## Handle the multiple (cumulative) disturbance cases
+      ## mutate(DISTURBANCE_TYPE = ifelse(DISTURBANCE_TYPE == "n" & Dist.time == "After",
+      ##   paste0(unique(DISTURBANCE_TYPE[Dist.type == "Cumulative" | Dist.time == "During"])),
+      ##   DISTURBANCE_TYPE
+      ## )) |>
+      ## Handle the single disturbance cases
+      mutate(DISTURBANCE_TYPE = ifelse((is.na(DISTURBANCE_TYPE) | DISTURBANCE_TYPE == "n") & Dist.time == "After",
+        replace_disturbance(DISTURBANCE_TYPE, Dist.time),
+        DISTURBANCE_TYPE
+      ))
+  })) |>
+  unnest(data) |>
+  arrange(FULLREEF_ID, year) |>
+  ungroup()
+save(lookup, file = "../data/processed/q2_lookup_0.RData")
+## ----end
+
 
 ## - Dist.time == "Before" for Dist.number == 1 is a "n"
 ## - Dist.time == "After" for Dist.number == 1 has two rows
 ## - Dist.number == 2, Before, During and After all have different DISTURBANCE_TYPE (n, d, b)
 
-## lookup <- old_lookup 
+## lookup <- old_lookup
 ## ---- before_after_tests
 tests <- lookup |>
-  filter(!is.na(DISTURBANCE_TYPE),
+  filter(
+    !is.na(DISTURBANCE_TYPE),
     Dist.number > 0,
     Dist.time != "Recovery",
-    Dist.type != "Pre") |>
+    Dist.type != "Pre"
+  ) |>
   nest(.by = c("FULLREEF_ID", "REEF", "Dist.number")) |>
-    mutate(BeforeAfter = map(
-      .x = data,
-      .f = ~ before_after_tests(.x)
-    )) 
-save(tests, file = "../data/processed/q2_tests_1.RData")
+  mutate(BeforeAfter = map(
+    .x = data,
+    .f = ~ before_after_tests(.x)
+  ))
+save(tests, file = "../data/processed/q2_tests_1.RData") 
 ## ----end
 ## .x <- tests[14, "data"][[1]][[1]]
+
 
 ## Instances where there are no before cases
 ## ---- before_after_tests_no_before
@@ -103,11 +138,11 @@ tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(before_flag == "no before") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
+  mutate(across(where(is.numeric), round, 3)) |>
   as.data.frame() |>
-  datatable(class = "compact") 
-  ## formatRound(columns = 1:5, digits = 3)
-  ## formatStyle(columns = "REEF", fontSize = "8pt")
+  datatable(class = c("compact", "white-space: nowrap")) 
+## formatRound(columns = 1:5, digits = 3)
+## formatStyle(columns = "REEF", fontSize = "8pt")
 ## ----END
 
 ## Instances where there are multiple before cases
@@ -117,9 +152,9 @@ tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(before_flag == "multiple before") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
-  as.data.frame() |> 
-  datatable(class = "compact")  
+  mutate(across(where(is.numeric), round, 3)) |>
+  as.data.frame() |>
+  datatable(class = c("compact", "white-space: nowrap"))
 ## ----end
 
 ## Instances where there After Disturbance Type is "n"
@@ -129,9 +164,9 @@ tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(n_flag == "after disturb n") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
-  as.data.frame() |> 
-  datatable(class = "compact")
+  mutate(across(where(is.numeric), round, 3)) |>
+  as.data.frame() |>
+  datatable(class = c("compact", "white-space: nowrap"))
 ## ----end
 
 ## Instances where there are no after cases
@@ -141,9 +176,9 @@ tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(after_flag == "no after") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
-  as.data.frame() |> 
-  datatable(class = "compact")
+  mutate(across(where(is.numeric), round, 3)) |>
+  as.data.frame() |>
+  datatable(class = c("compact", "white-space: nowrap"))
 ## ----end
 
 ## Instances where cover was greater after than before
@@ -152,10 +187,11 @@ load(file = "../data/processed/q2_tests_1.RData")
 tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
+  filter(Dist.time %in% c("After")) |> 
   filter(cover_flag == "cover increased") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
-  as.data.frame() |> 
-  datatable(class = "compact")
+  mutate(across(where(is.numeric), round, 3)) |>
+  as.data.frame() |>
+  datatable(class = c("compact", "white-space: nowrap"))
 ## ----end
 
 ## ---- make_excludes
@@ -164,22 +200,26 @@ excludes <- tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(!is.na(before_flag) |
-           !is.na(after_flag) |
-            !is.na(n_flag) |
-            !is.na(cover_flag)) |>
+    !is.na(after_flag) |
+    !is.na(n_flag) |
+    !is.na(cover_flag)) |>
   dplyr::select(FULLREEF_ID, REEF, Dist.number) |>
   distinct() |>
   mutate(EXCLUDE = TRUE)
 save(excludes, file = "../data/processed/q2_excludes_1.RData")
 ## ----end
 
+lookup |> filter(str_length(DISTURBANCE_TYPE)>1) |> as.data.frame() |> head()
 
-
-## lookup <- old_lookup 
+## lookup <- old_lookup
 ## ---- process_lookup
 load(file = "../data/processed/q2_excludes_1.RData")
-lookup <- 
+load(file = "../data/processed/q2_lookup_0.RData")
+lookup <-
   lookup |>
+  ## Duplicate rows with multiple disturbances
+  mutate(DISTURBANCE_TYPE = str_split(DISTURBANCE_TYPE, "")) |> 
+  unnest(DISTURBANCE_TYPE) |>                                    # Separate each character into a new row
   ## remove cases without disturbances
   filter(
     !is.na(DISTURBANCE_TYPE),
@@ -188,14 +228,18 @@ lookup <-
     Dist.type != "Pre"
   ) |>
   left_join(excludes) |>
-  filter(is.na(EXCLUDE)) |> 
-  pivot_wider(id_cols = everything(),
+  filter(is.na(EXCLUDE)) |>
+  pivot_wider(
+    id_cols = everything(),
     values_fn = \(x) sum(!is.na(x)),
     values_fill = 0,
-    names_from = DISTURBANCE_TYPE, values_from = DISTURBANCE_TYPE) |>
+    names_from = DISTURBANCE_TYPE, values_from = DISTURBANCE_TYPE
+  ) |>
   dplyr::select(-EXCLUDE)
-save(lookup, file = "../data/processed/q2_lookup_1.R") 
+save(lookup, file = "../data/processed/q2_lookup_1.RData")
 ## ----end
+
+lookup |> filter(REEF == "Havannah Island", Dist.number == 1, year == 2004)|> as.data.frame() |> head()
 
 ## old
 if (1 == 2) {
@@ -258,13 +302,14 @@ data <-
   left_join(lookup,
     by = c("A_SECTOR", "FULLREEF_ID", "REPORT_YEAR" = "year")
   )
-save(data, file = "../data/processed/q2_data_1.R") 
+save(data, file = "../data/processed/q2_data_1.RData")
 ## ----end
 
+data |> filter(REEF == "Havannah Island", Dist.number == 1, REPORT_YEAR == 2004)|> as.data.frame() |> head()
 
 ## Final prep is to add some derived variables
 ## ---- add_derived
-load(file = "../data/processed/q2_data_1.R") 
+load(file = "../data/processed/q2_data_1.RData")
 data <-
   data |>
   mutate(
@@ -275,30 +320,56 @@ data <-
   ) |>
   filter(Dist.time %in% c("Before", "After")) |>
   filter(!is.na(Dist.number)) |>
-  droplevels() |> 
+  droplevels() |>
   mutate(Dist.time = factor(Dist.time, levels = c("Before", "After"))) |>
   mutate(SecShelf = factor(paste(A_SECTOR, SHELF)))
 
-save(data, file = "../data/processed/q2_data_2.R") 
+save(data, file = "../data/processed/q2_data_2.RData")
 ## ----end
 
-
+## ---- q2_data_view_2
+load(file = "../data/processed/q2_data_2.RData")
+data |>
+  dplyr::relocate(A_SECTOR, SHELF, REEF_NAME, REPORT_YEAR) |> 
+  datatable(
+    class = c("compact", "white-space: nowrap"),
+    filter = "top",
+    extensions = c("Buttons","FixedColumns", "KeyTable"),
+    options = list(
+      dom = "Bfrtip",
+      scrollX = TRUE,
+      fixedColumns = list(leftColumns = 5),
+      keys = TRUE,       ## move via arrow keys
+      autoWidth = TRUE,
+      buttons = list(
+        list(
+          extend = "collection",
+          buttons = c("copy", "csv", "excel", "pdf", "print"),
+          text = "Download"
+        )
+      ),
+      columnDefs = list(list(width = "10px", targets = 0))
+    )
+  )
+## ----end
 
 
 ## Having now joined the disturbance data to the benthic data, we need
 ## to perform the tests again.
 
 ## ---- before_after_tests_2
-load(file = "../data/processed/q2_data_2.R") 
+load(file = "../data/processed/q2_data_2.RData")
 tests <- data |>
-  mutate(COVER = n.points / total.points) |> 
+  mutate(COVER = n.points / total.points) |>
   nest(.by = c("Reef", "FULLREEF_ID", "REEF", "Site", "Transect", "Dist.number")) |>
-    mutate(BeforeAfter = map(
-      .x = data,
-      .f = ~ before_after_tests(.x)
-    )) 
+  mutate(BeforeAfter = map(
+    .x = data,
+    .f = ~ before_after_tests(.x)
+  ))
 save(tests, file = "../data/processed/q2_tests_2.RData")
 ## ----end
+
+
 
 ## Instances where there are no before cases
 ## ---- before_after_tests_no_before_2
@@ -307,10 +378,11 @@ tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(before_flag == "no before") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
+  mutate(across(where(is.numeric), round, 3)) |>
   as.data.frame() |>
-  datatable(class = "compact") 
-## ----END
+  datatable(class = c("compact", "white-space: nowrap"))
+## ----end
+
 
 ## Instances where there are multiple before cases
 ## ---- before_after_tests_multiple_before_2
@@ -319,9 +391,9 @@ tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(before_flag == "multiple before") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
-  as.data.frame() |> 
-  datatable(class = "compact")  
+  mutate(across(where(is.numeric), round, 3)) |>
+  as.data.frame() |>
+  datatable(class = c("compact", "white-space: nowrap"))
 ## ----end
 
 ## Instances where there After Disturbance Type is "n"
@@ -331,8 +403,8 @@ tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(n_flag == "after disturb n") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
-  as.data.frame() |> 
+  mutate(across(where(is.numeric), round, 3)) |>
+  as.data.frame() |>
   datatable(class = "compact")
 ## ----end
 
@@ -343,9 +415,9 @@ tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(after_flag == "no after") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
-  as.data.frame() |> 
-  datatable(class = "compact")
+  mutate(across(where(is.numeric), round, 3)) |>
+  as.data.frame() |>
+  datatable(class = c("compact", "white-space: nowrap"))
 ## ----end
 
 ## Instances where cover was greater after than before
@@ -355,9 +427,9 @@ tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(cover_flag == "cover increased") |>
-  mutate(across(where(is.numeric), round, 3)) |> 
-  as.data.frame() |> 
-  datatable(class = "compact")
+  mutate(across(where(is.numeric), round, 3)) |>
+  as.data.frame() |>
+  datatable(class = c("compact", "white-space: nowrap"))
 ## ----end
 
 
@@ -367,8 +439,8 @@ excludes <- tests |>
   dplyr::select(-data) |>
   unnest(c(BeforeAfter)) |>
   filter(!is.na(before_flag) |
-           !is.na(after_flag) |
-            !is.na(n_flag)) |>
+    !is.na(after_flag) |
+    !is.na(n_flag)) |>
   dplyr::select(Transect, Dist.number) |>
   distinct() |>
   mutate(EXCLUDE = TRUE)
@@ -383,27 +455,58 @@ data <-
 ## ----end
 
 ## ---- encode_disturbances
-load(file = "../data/processed/q2_data_2.R") 
+load(file = "../data/processed/q2_data_2.RData")
 data <- data |>
-  mutate(across(c(s, c, d, b, u), \(x) ifelse(Dist.time == "Before", 0, x))) |> 
+  mutate(across(c(s, c, d, b, u), \(x) ifelse(Dist.time == "Before", 0, x))) |>
   mutate(Dist = case_when(
-    s > 0 & (c + d + b + u == 0) ~ "s",
+    s == 1 & (c + d + b + u == 0) ~ "s",
+    s > 1 & (c + d + b + u == 0) ~ "ss",
     s > 0 & (c + d + b + u > 0) ~ "sm",
-    c > 0 & (s + d + b + u == 0) ~ "c",
+    c == 1 & (s + d + b + u == 0) ~ "c",
+    c > 1 & (s + d + b + u == 0) ~ "cc",
     c > 0 & (s + d + b + u > 0) ~ "cm",
-    d > 0 & (s + c + b + u == 0) ~ "d",
+    d == 1 & (s + c + b + u == 0) ~ "d",
+    d > 1 & (s + c + b + u == 0) ~ "df",
     d > 0 & (s + c + b + u > 0) ~ "dm",
-    b > 0 & (s + c + d + u == 0) ~ "b",
+    b == 1 & (s + c + d + u == 0) ~ "b",
+    b > 1 & (s + c + d + u == 0) ~ "bb",
     b > 0 & (s + c + d + u > 0) ~ "bm",
-    u > 0 & (s + c + d + b == 0) ~ "u",
+    u == 1 & (s + c + d + b == 0) ~ "u",
+    u > 1 & (s + c + d + b == 0) ~ "uu",
     u > 0 & (s + c + d + b > 0) ~ "um",
     .default = "Before"
-  )) |> 
+  )) |>
   mutate(Dist = forcats::fct_relevel(Dist, "Before")) |>
   mutate(Dist.type = ifelse(s + c + d + b + u > 1, "Cumulative", "Single")) |>
   mutate(across(c(s, c, d, b, u), \(x) ifelse(x > 1, 1, x))) |>
   mutate(across(c(s, c, d, b, u), as.factor)) |>
   mutate(event = paste(Transect, Dist.number)) |>
   mutate(SSDist = paste(SecShelf, Dist))
-save(data, file = "../data/processed/data_q2.R") 
+save(data, file = "../data/processed/data_q2.RData")
+## ----end
+
+## ---- q2_view_data
+load(file = "../data/processed/data_q2.RData")
+data |>
+  dplyr::relocate(A_SECTOR, SHELF, REEF_NAME, REPORT_YEAR) |> 
+  datatable(
+    class = c("compact", "white-space: nowrap"),
+    filter = "top",
+    extensions = c("Buttons","FixedColumns", "KeyTable"),
+    options = list(
+      dom = "Bfrtip",
+      scrollX = TRUE,
+      fixedColumns = list(leftColumns = 5),
+      keys = TRUE,       ## move via arrow keys
+      autoWidth = TRUE,
+      buttons = list(
+        list(
+          extend = "collection",
+          buttons = c("copy", "csv", "excel", "pdf", "print"),
+          text = "Download"
+        )
+      ),
+      columnDefs = list(list(width = "10px", targets = 0))
+    )
+  )
 ## ----end

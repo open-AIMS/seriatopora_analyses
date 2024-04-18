@@ -1,6 +1,6 @@
 ## Retrieve the data
 ## ---- q2_retrieve_data
-load(file = "../data/processed/data_q2.R")
+load(file = "../data/processed/data_q2.RData")
 ## ----end
 
 ## This is similar to above (for lookup data), except that was
