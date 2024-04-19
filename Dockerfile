@@ -104,6 +104,18 @@ RUN R -e "options(repos = \
   install.packages('DHARMa');   \
   install.packages('patchwork');   \
 "  
+
+RUN R -e "options(repos = \
+  list(CRAN = 'https://packagemanager.posit.co/cran/2024-02-20/')); \
+  install.packages('posterior');   \
+  install.packages('INLAutils');   \
+  install.packages('bayesplot');   \
+  install.packages('DT');   \
+  install.packages('modelsummary');   \
+  remotes::install_github("inbo/inlatools");   \
+  remotes::install_github("jmgirard/standist"); \
+"  
+
 ## Create project directory in docker image 
 RUN mkdir ~/Project
 
