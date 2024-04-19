@@ -112,8 +112,8 @@ RUN R -e "options(repos = \
   install.packages('bayesplot');   \
   install.packages('DT');   \
   install.packages('modelsummary');   \
-  remotes::install_github("inbo/inlatools");   \
-  remotes::install_github("jmgirard/standist"); \
+  remotes::install_github('inbo/inlatools');   \
+  remotes::install_github('jmgirard/standist'); \
 "  
 
 ## Create project directory in docker image 
