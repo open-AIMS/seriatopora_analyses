@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  REPO = open-aims/$ {{ github.repository }}
+  REPO = open-aims/seriatopora_analyses
   
 jobs:
   generate-data:
