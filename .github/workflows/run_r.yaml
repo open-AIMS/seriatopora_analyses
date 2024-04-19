@@ -16,12 +16,15 @@ jobs:
           - {os: ubuntu-latest}
     
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
-        with:
-         token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Script
+      - name: test
         run: |
-          source("R/00_main.R")
-        shell: Rscript {0}
+          echo "${( Github.repository }}"
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      #- uses: actions/checkout@v4
+      #  with:
+      #   token: ${{ secrets.GITHUB_TOKEN }}
+
+      #- name: Run Script
+      #  run: |
+      #    source("R/00_main.R")
+      #  shell: Rscript {0}
