@@ -108,12 +108,12 @@ RUN R -e "options(repos = \
 RUN R -e "options(repos = \
   list(CRAN = 'https://packagemanager.posit.co/cran/2024-02-20/')); \
   install.packages('posterior');   \
-  install.packages('INLAutils');   \
   install.packages('bayesplot');   \
   install.packages('DT');   \
   install.packages('modelsummary');   \
   remotes::install_github('inbo/inlatools');   \
   remotes::install_github('jmgirard/standist'); \
+  remotes::install_github('timcdlucas/INLAutils'); \
 "  
 
 ## Create project directory in docker image 
