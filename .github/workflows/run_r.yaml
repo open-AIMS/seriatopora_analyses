@@ -6,7 +6,7 @@ on:
 jobs:
   generate-data:
     runs-on: ${{ matrix.config.os }}
-    container: ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):main #put in the correct branch name
+    container: ghcr.io/${{ Github.repository }}:main #put in the correct branch name
     name: ${{ matrix.config.os }} 
     
     strategy:
@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: test
         run: |
-          echo "${( Github.repository }}"
+          echo "${{ Github.repository }}"
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       #- uses: actions/checkout@v4
       #  with:
