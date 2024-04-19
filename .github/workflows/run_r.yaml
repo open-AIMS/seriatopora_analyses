@@ -6,7 +6,7 @@ on:
 jobs:
   generate-data:
     runs-on: ${{ matrix.config.os }}
-    container: ghcr.io/open-aims/seriatopora_analysis:main #put in the correct branch name
+    container: ghcr.io/open-aims/seriatopora_analyses:main #put in the correct branch name
     name: ${{ matrix.config.os }} 
     
     strategy:
