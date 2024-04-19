@@ -1,0 +1,27 @@
+name: Run R scripts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-data:
+    runs-on: ${{ matrix.config.os }}
+    container: ghcr.io/${{ Github.repository }}:main #put in the correct branch name
+    name: ${{ matrix.config.os }} 
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: ubuntu-latest}
+    
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+         token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Script
+        run: |
+          source("R/00_main.R")
+        shell: Rscript {0}

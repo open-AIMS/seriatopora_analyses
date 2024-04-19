@@ -20,6 +20,7 @@ library(modelsummary)
 source("../R/helper_functions.R")
 ## ----end
 
+if (1 == 2) {
 ## ---- preparePaths
 source("../R/02_prepare_paths.R")
 ## ----end
@@ -52,3 +53,5 @@ source("32_eda.R")
 
 source("33_fitted_models.R")
 
+  
+}
