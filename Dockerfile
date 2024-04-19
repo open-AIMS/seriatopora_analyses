@@ -110,6 +110,7 @@ RUN R -e "options(repos = \
   install.packages('posterior');   \
   install.packages('bayesplot');   \
   install.packages('DT');   \
+  install.packages('easystats'); \
   install.packages('modelsummary');   \
   remotes::install_github('inbo/inlatools');   \
   remotes::install_github('jmgirard/standist'); \
