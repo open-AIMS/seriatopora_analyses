@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  REPO = open-aims/seriatopora_analyses
+  REPO: open-aims/seriatopora_analyses
   
 jobs:
   generate-data:
