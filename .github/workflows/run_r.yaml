@@ -6,7 +6,7 @@ on:
 jobs:
   generate-data:
     runs-on: ${{ matrix.config.os }}
-    container: ghcr.io/${{ tolower(Github.repository) }}:main #put in the correct branch name
+    container: ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]'):main #put in the correct branch name
     name: ${{ matrix.config.os }} 
     
     strategy:
