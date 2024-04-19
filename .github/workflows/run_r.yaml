@@ -3,11 +3,14 @@ name: Run R scripts
 on:
   workflow_dispatch:
 
+env:
+  REPO = open-aims/$ {{ github.repository }}
+  
 jobs:
   generate-data:
     runs-on: ${{ matrix.config.os }}
     #container: ghcr.io/open-aims/seriatopora_analyses:main #put in the correct branch name
-    container: ghcr.io/open-aims/${ ${{ github.repository }} | tr [:upper:] [:lower:] }:main #put in the correct branch name
+    container: ghcr.io/open-aims/${{ REPO }}:main #put in the correct branch name
     name: ${{ matrix.config.os }} 
     
     strategy:
