@@ -3,14 +3,11 @@ name: Run R scripts
 on:
   workflow_dispatch:
 
-env:
-  REPO: open-aims/seriatopora_analyses
-  
 jobs:
   generate-data:
     runs-on: ${{ matrix.config.os }}
-    #container: ghcr.io/open-aims/seriatopora_analyses:main #put in the correct branch name
-    container: ghcr.io/open-aims/${{ env.REPO }}:main #put in the correct branch name
+    container: ghcr.io/open-aims/seriatopora_analyses:main #put in the correct branch name
+    #container: ghcr.io/open-aims/${{ env.REPO }}:main #put in the correct branch name
     name: ${{ matrix.config.os }} 
     
     strategy:
@@ -24,11 +21,11 @@ jobs:
         run: |
           echo "${{ Github.repository }}"
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      #- uses: actions/checkout@v4
-      #  with:
-      #   token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+        with:
+         token: ${{ secrets.GITHUB_TOKEN }}
 
-      #- name: Run Script
-      #  run: |
-      #    source("R/00_main.R")
-      #  shell: Rscript {0}
+      - name: Run Script
+        run: |
+          source("R/00_main.R")
+        shell: Rscript {0}
