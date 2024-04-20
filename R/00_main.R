@@ -14,6 +14,7 @@ library(inlatools)
 library(bayesplot)
 library(DT)
 library(modelsummary)
+config_modelsummary(factory_default = 'tinytable')
 ## ----end
 
 ## ---- loadFunctions
