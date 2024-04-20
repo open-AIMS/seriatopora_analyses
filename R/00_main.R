@@ -17,6 +17,7 @@ library(modelsummary)
 ## ----end
 
 ## ---- loadFunctions
+setwd("R")
 source("../R/helper_functions.R")
 ## ----end
 
