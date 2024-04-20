@@ -22,7 +22,6 @@ setwd("R")
 source("../R/helper_functions.R")
 ## ----end
 
-if (1 == 2) {
 ## ---- preparePaths
 source("../R/02_prepare_paths.R")
 ## ----end
@@ -32,7 +31,7 @@ source("../R/02_prepare_paths.R")
 
 ## Process the data
 source("10_process_data.R")
-
+if (1 == 2) {
 ## Question 1 - temporal (quasi-spatial) patterns
 
 ## Prepare the data
