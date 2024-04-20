@@ -115,6 +115,7 @@ RUN R -e "options(repos = \
   remotes::install_github('inbo/inlatools');   \
   remotes::install_github('jmgirard/standist'); \
   remotes::install_github('timcdlucas/INLAutils'); \
+  install.packages('styler'); \
 "  
 
 ## Create project directory in docker image 
