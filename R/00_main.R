@@ -18,7 +18,7 @@ config_modelsummary(factory_default = 'tinytable')
 ## ----end
 
 ## ---- loadFunctions
-setwd("R")
+##setwd("R")
 source("../R/helper_functions.R")
 ## ----end
 

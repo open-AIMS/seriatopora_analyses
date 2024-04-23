@@ -286,6 +286,7 @@ rerun_models <- FALSE
 
       eff_brm <- brm_calc_effect(cellmeans_brm)
       save(eff_brm, file = "../data/modelled/eff_brm_1.6_type_1.RData")
+      load(file = "../data/modelled/eff_brm_1.6_type_1.RData")
 
       p <- brm_effects_plot(eff_brm)
       ggsave(
@@ -301,6 +302,7 @@ rerun_models <- FALSE
 
       eff_brm <- brm_calc_effect(cellmeans_brm)
       save(eff_brm, file = "../data/modelled/eff_brm_1.6_type_2.RData")
+      load(file = "../data/modelled/eff_brm_1.6_type_2.RData")
 
       p <- brm_effects_plot(eff_brm)
       ggsave(

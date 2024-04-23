@@ -740,6 +740,8 @@ dist_palette <- tribble(
   "cd",   "#275825",
   "cu",   "#a69725",
   "u",    "#ff7f00",
+  "su",   "pink",
+  "sd",   "purple",
   )
 ## ----end
 
@@ -877,8 +879,39 @@ brm_effects_plot <- function(eff_brm) {
     filter(lab != "Before") |>
     droplevels()
 
+  dist_order <- tribble(
+    ~levels, ~labels,
+    "b",     "Bleaching",
+    "c",     "COTS",
+    "s",     "Storms",
+    "u",     "Unknown",
+    "d",     "Disease"
+  )
+  dist_order <- dist_order[5:1,]
+
+  dist_full_order <- tribble(
+    ~levels, ~labels,
+    "b",     "Bleaching",
+    "c",     "COTS",
+    "cb",    "COTS/Bleaching",
+    "s",     "Storms",
+    "u",     "Unknown",
+    "d",     "Disease",
+    "sb",    "Storms/Bleaching",
+    "sc",    "Storms/COTS",
+    "scb",   "Storms/Bleaching/COTS",
+    "sd",    "Storms/Disease",
+    "su",    "Storms/Unknown",
+  )
+
+  dist_palette <- dist_palette |>
+    full_join(dist_full_order, by = c("lab" = "levels"))
+
   eff_brm |>
-    mutate(Dist = forcats::fct_relevel(Dist, "b", "c", "s", "u", "d")) |>
+    mutate(Dist2 = forcats::fct_relevel(Dist2, dist_order$levels)) |>
+    ## mutate(Dist = forcats::fct_relevel(Dist, "b", "c", "s", "u", "d")) |>
+    mutate(Dist = factor(Dist, levels = dist_full_order$levels, labels = dist_full_order$labels)) |>
+    ## mutate(Dist = forcats::fct_relevel(Dist, dist_order$levels)) |>
     mutate(A_SECTOR = factor(A_SECTOR,
       levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
       labels = c(
@@ -901,12 +934,12 @@ brm_effects_plot <- function(eff_brm) {
       height = 0,
       fill = "white", 
       ## point_size = 0,
-      show.legend = FALSE) +
-    scale_point_size_continuous(range =  c(2, 4)) +
-    ## scale_size_binned(breaks = c(1, 2, 3)) +
-    ## scale_size_binned(breaks = c(1, 3), limits = c(1,3), range = c(0.5, 10)) +
-    ## scale_shape_manual(breaks = c(FALSE, TRUE), values = c(16, 21)) +
-    scale_shape_manual(breaks = c(1, 2, 3), values = c(16, 21, 23)) +
+      show.legend = c(size = FALSE)) +
+    scale_point_size_continuous(range = c(2, 4), guide = NULL) +
+      ## scale_size_binned(breaks = c(1, 2, 3)) +
+      ## scale_size_binned(breaks = c(1, 3), limits = c(1,3), range = c(0.5, 10)) +
+      ## scale_shape_manual(breaks = c(FALSE, TRUE), values = c(16, 21)) +
+    scale_shape_manual(breaks = c(1, 2, 3), values = c(16, 21, 23), guide = NULL) +
     scale_x_continuous("Effect size (% change in Seriatopora cover after disturbance)",
       trans = scales::log2_trans(),
       labels = function(x) round(100*(x-1), 2),
@@ -916,12 +949,15 @@ brm_effects_plot <- function(eff_brm) {
       #limits = c(0.001, 10)
       ) +
     scale_colour_manual("Disurbances",
-      breaks = dist_palette$lab,
+      guide = guide_legend(),
+      breaks = dist_palette$labels,
       values = dist_palette$color) +
     scale_y_discrete("Disturbance type",
-      breaks = c("b", "c", "s", "u", "d"),
-      labels = c("Bleaching", "COTS", "Storms", "Unknown", "Disease"),
-      expand = c(0, 0.3)) +
+      ## breaks = c("b", "c", "s", "u", "d"),
+      ## labels = c("Bleaching", "COTS", "Storms", "Unknown", "Disease"),
+      breaks = dist_order$levels,
+      labels = dist_order$labels) +
+      ## expand = c(0, 0.3)) +
     theme_bw() +
     theme(axis.title.y = element_text(size = rel(1.25), margin = margin(r = 1, unit = "char")),
       axis.title.x = element_text(size = rel(1.25), margin = margin(t = 1, unit = "char")),
@@ -932,7 +968,9 @@ brm_effects_plot <- function(eff_brm) {
       scales = "free",
       labeller = label_wrap_gen(width = 12, multi_line = TRUE)
     ) +
-    coord_cartesian(clip = "on", xlim = c(0.001, 11))
+    coord_cartesian(clip = "on", xlim = c(0.001, 11)) #+
+    #guides(.width = FALSE, colour = )
+
 }
 ## ----end
 
@@ -949,6 +987,10 @@ brm_effects_plot_gbr <- function(eff_brm, height = 1.5, p = 0.1, dist_order = NU
       "d",     "Disease"
     )
   }
+  ## eff_brm <- eff_brm |>
+  ##   mutate(Dist = factor(Dist, levels = rev(levels(Dist))))
+
+  dist_order <- dist_order[5:1,]
   my_density <- function(x, p) {
     D <- density(log(x))
     exp(as.vector(D$x[D$y > p][1]))
@@ -1019,7 +1061,9 @@ brm_effects_plot_gbr <- function(eff_brm, height = 1.5, p = 0.1, dist_order = NU
       ## labels = c("Bleaching", "COTS", "Storms", "Unknown", "Disease"),
       breaks = dist_order$levels,
       labels = dist_order$labels,
-      expand = c(0, 0.3)) +
+      expand = c(0, 0.3)
+    ) + 
+    ## limits = rev(dist_order$levels)) +
     theme_bw() +
     theme(axis.title.y = element_text(size = rel(1.25), margin = margin(r = 1, unit = "char")),
       axis.title.x = element_text(size = rel(1.25), margin = margin(t = 1, unit = "char")),

@@ -21,7 +21,7 @@ crossref:
 engine: knitr
 output_dir: "docs"
 ---
-
+ 
 ```{r chunks, results='markdown', eval=TRUE, echo = FALSE}
 assignInNamespace('.sep.label',  "^\\ *(#|--)+\\s*(@knitr|----+)(.*?)-*\\s*$", ns='knitr')
 
@@ -615,7 +615,7 @@ inappropriate from a modelling perspective. Notice that many of the
 #| eval: false
 #| echo: true
 ```
-
+ 
 #### Partial plots
 
 ::::: {.panel-tabset}
@@ -1330,7 +1330,8 @@ And the functions called
 
 ##### re_formula = NULL
 
-![Effect size (expressed as a percentage change in Seriatopora cover after disturbance) conditional on sector/shelf and disturbance type.  Points and intervals represent median and 95% credibility intervals of posteriors.  Solid symbols represent sole disturbances and open symbols represent multiple disturbances.](analysis_files/figure-html/contrasts_brm_1.6_type_1.png)
+![Effect size (expressed as a percentage change in Seriatopora cover after disturbance) conditional on sector/shelf and disturbance type.  Points and intervals represent median and 95% credibility intervals of posteriors.  Solid symbols represent sole disturbances and open symbols represent multiple disturbances.  Different colours represent different combinations of disturbances. Multiple disturbances are displayed multiple times (once under each major disturbance type). For example, a disturbance sequence of Storms/Bleaching will appear against both Storms and Bleaching. ](analysis_files/figure-html/contrasts_brm_1.6_type_1.png){#fig-contrasts_brm_1.6_type_1}
+
 <!--
 ![](analysis_files/figure-html/contrasts_brm_1.6_pretty_type_1.png)
 ![](analysis_files/figure-html/contrasts_brm_1.6_pretty.png)
@@ -1376,7 +1377,7 @@ And the functions called
 
 ##### re_formula = NA
 
-![Effect size (expressed as a percentage change in Seriatopora cover after disturbance) conditional on sector/shelf and disturbance type.  Points and intervals represent median and 95% credibility intervals of posteriors.  Solid symbols represent sole disturbances and open symbols represent multiple disturbances.](analysis_files/figure-html/contrasts_brm_1.6_type_2.png)
+![Effect size (expressed as a percentage change in Seriatopora cover after disturbance) conditional on sector/shelf and disturbance type.  Points and intervals represent median and 95% credibility intervals of posteriors.  Solid symbols represent sole disturbances and open symbols represent multiple disturbances. Different colours represent different combinations of disturbances. Multiple disturbances are displayed multiple times (once under each major disturbance type). For example, a disturbance sequence of Storms/Bleaching will appear against both Storms and Bleaching.](analysis_files/figure-html/contrasts_brm_1.6_type_2.png)
 <!--
 ![](analysis_files/figure-html/contrasts_brm_1.6_pretty_type_2.png)
 -->
