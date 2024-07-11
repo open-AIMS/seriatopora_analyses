@@ -32,16 +32,17 @@ source("../R/02_prepare_paths.R")
 ## Process the data
 source("10_process_data.R")
 if (1 == 2) {
-## Question 1 - temporal (quasi-spatial) patterns
+  ## Question 1 - temporal (quasi-spatial) patterns
 
-## Prepare the data
-source("21_prepare_data.R")
+  ## Prepare the data
+  source("21_prepare_data.R")
 
-## Exploratory data analysis
-source("22_eda.R")
+  ## Exploratory data analysis
+  source("22_eda.R")
 
-## Fit the models
-source("23_fit_models.R")
+  ## Fit the models
+  source("23_fit_models.R")
+}
 
 ## Question 2 - Before/After analyses
 source("31_prepare_data.R")
@@ -54,5 +55,3 @@ source("32_eda.R")
 
 source("33_fitted_models.R")
 
-  
-}
