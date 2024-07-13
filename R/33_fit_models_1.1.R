@@ -1,5 +1,5 @@
 ## Retrieve the data
-load(file = "../data/processed/data_q2.RData")
+load(file = "../data/processed/data_q2_combined.RData")
 
 
 ## Strip out all unnecessary variables

@@ -1,5 +1,7 @@
 ## Retrieve the data
 load(file = "../data/processed/data_q2.R")
+data_old <- data
+load(file = "../data/processed/data_q2_combined.RData")
 
 
 ## Strip out all unnecessary variables
@@ -12,7 +14,7 @@ data <- full_data
 data <- full_data
 ## ---- q2_7_1_raw_prepare_data
 ## Focus on only the necessary variables
-load(file = "../data/processed/data_q2.R")
+load(file = "../data/processed/data_q2_combined.RData")
 data <- data |>
   mutate(SecShelf = paste(A_SECTOR, SHELF)) |> 
   dplyr::select(

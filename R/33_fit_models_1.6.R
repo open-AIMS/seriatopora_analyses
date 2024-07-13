@@ -1,6 +1,6 @@
 ## Retrieve the data
 ## ---- q2_data_1.6
-load(file = "../data/processed/data_q2.RData")
+load(file = "../data/processed/data_q2_combined.RData")
 ## ----end
 
 

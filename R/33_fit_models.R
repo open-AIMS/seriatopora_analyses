@@ -1,31 +1,33 @@
 rerun_models <- FALSE
 
 ## Model 1.1  logit(P()) = β₀ + γ₀ᵢ + γ₁ⱼ + γ₂ₖ  (Binomial)
-source("33_fit_models_1.1.R")
+## source("33_fit_models_1.1.R")
 
 ## Model 1.2  logit(P()) = β₀ + γ₀ᵢ + γ₁ⱼ + γ₂ₖ, logit(P()) = α₀  (Zero-inflated Binomial)
-source("33_fit_models_1.2.R")
+## source("33_fit_models_1.2.R")
 
 ## Model 1.3  logit(P()) = β₀ + γ₀ᵢ + γ₁ⱼ + γ₂ₖ, logit(P()) = α₀ + γ₀ᵢᵣ + γ₁ⱼᵣ + γ₂ₖᵣ (Zero-inflated Binomial)
-source("33_fit_models_1.3.R")
+## source("33_fit_models_1.3.R")
 
 ## Model 2.1  logit(P()) = β₀ + β₁*Dist.time + γ₀ᵢ + γ₁ⱼ + γ₂ₖ, logit(P()) = α₀ + γ₀ᵢᵣ + γ₁ⱼᵣ + γ₂ₖᵣ (Zero-inflated Binomial)
-source("33_fit_models_2.1.R")
+## source("33_fit_models_2.1.R")
 
 ## Model 3.1  logit(P()) = β₀ + β₁*Dist.time + β₃₋₁₁*SecShelf + γ₀ᵢ + γ₁ⱼ + γ₂ₖ, logit(P()) = α₀ + γ₀ᵢᵣ + γ₁ⱼᵣ + γ₂ₖᵣ (Zero-inflated Binomial)
-source("33_fit_models_3.1.R")
+## source("33_fit_models_3.1.R")
 
 ## Model 4.1  logit(P()) = β₀ + β₁*Dist.time + γ₀ᵢ + γ₁ⱼ + γ₂ₖ, logit(P()) = α₀  (Zero-inflated Binomial)
-source("33_fit_models_4.1.R")
+## source("33_fit_models_4.1.R")
 
 ## Model 5.1  logit(P()) = β₀ + β₁*Dist.time + γ₀ᵢ + γ₁ⱼ + γ₂ₖ, logit(P()) = α₀ + γ₀ᵢᵣ + γ₁ⱼᵣ + γ₂ₖᵣ  (Zero-inflated Binomial)
-source("33_fit_models_5.1.R")
+## source("33_fit_models_5.1.R")
 
 ## Model 6.1  logit(P()) = β₀ +  γₐᵢ + γ₀ᵢ + γ₁ⱼ + γ₂ₖ, logit(P()) = α₀ (Zero-inflated Binomial)
-source("33_fit_models_6.1.R")
+## source("33_fit_models_6.1.R")
 
 ## Model 7.1  logit(P()) = β₀ +  γₐᵢ + γ₀ᵢ + γ₁ⱼ + γ₂ₖ, logit(P()) = α₀ + γ₀ᵢᵣ + γ₁ⱼᵣ + γ₂ₖᵣ  (Zero-inflated Binomial)
-source("33_fit_models_7.1.R")
+## source("33_fit_models_7.1.R")
+source("33_fit_models_7.1_raw.R")
+source("33_fit_models_1.1.R")
 
 ## data <- data |>
 ##   dplyr::select(n.points, total.points, A_SECTOR, SHELF, SecShelf,

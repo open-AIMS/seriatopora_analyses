@@ -1,6 +1,6 @@
 ## Retrieve the data
 ## ---- q2_data_1.5
-load(file = "../data/processed/data_q2.RData")
+load(file = "../data/processed/data_q2_combined.RData")
 ## ----end
 
 
@@ -388,9 +388,9 @@ rerun_models <- FALSE
           formula = form,
           data = data,
           prior = priors,
-          ## iter = 5000, warmup = 1000,
-          iter = 50, warmup = 10,
-          chains = 1, cores = 1,
+          iter = 5000, warmup = 1000,
+          ##iter = 50, warmup = 10,
+          chains = 3, cores = 3,
           sample_prior = "yes",
           thin = 5,
           backend = "cmdstanr",
