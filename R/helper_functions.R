@@ -653,10 +653,35 @@ before_vs_afters <- function(.x) {
   xmat <- cbind(-1, 1 * contr.treatment(N, base = 1, contrast = TRUE))
   xmat <- xmat[-1, ]
   x <- log(as.vector(as.vector(.x$Values)))
-  data.frame(
-    Dist = .x$Dist[-1],
-    Values = exp(as.vector(x %*% t(xmat)))
-  )
+  ## data.frame(
+  ##   Dist = .x$Dist[-1],
+  ##   Values = exp(as.vector(x %*% t(xmat)))
+  ## )
+  if (N>2) {  #if there are more than 2 levels
+    data.frame(
+      Dist = .x$Dist[-1],
+      Values = exp(as.vector(x %*% t(xmat)))
+    )
+  } else {  ## if there is only one contrast
+    data.frame(
+      Dist = .x$Dist[-1],
+      Values = exp(as.vector(x %*% (xmat)))
+    )
+  }
+}
+## ----end
+
+## ---- brm_generate_newdata_no_dist
+brm_generate_newdata_no_dist <- function(data, GBR = FALSE) {
+  newdata <-
+    data |>
+    mutate(zone_depth = NA) |> 
+    dplyr::select(SecShelfYr, zone_depth) |>
+    ## filter(SecShelf == "CA M") |> 
+    distinct() |> 
+    mutate(AIMS_REEF_NAME = NA, Site = NA, Transect = NA, event = NA, total.points = 1)
+  if (GBR) newdata <- newdata |> mutate(SecShelf = NA)
+  return(newdata)
 }
 ## ----end
 
@@ -674,7 +699,8 @@ brm_generate_newdata <- function(data, GBR = FALSE) {
   } else {
     newdata <-
       data |>
-      dplyr::select(SecShelf, Dist, s, c, d, b, u) |>
+      mutate(zone_depth = NA) |> 
+      dplyr::select(SecShelf, zone_depth, Dist, s, c, d, b, u) |>
       ## filter(SecShelf == "CA M") |> 
       distinct() |>
       rowwise() |>
@@ -707,6 +733,16 @@ brm_generate_newdata <- function(data, GBR = FALSE) {
     mutate(Dist3 = ifelse(cummulative, Dist3, Dist2))
   if (GBR) newdata <- newdata |> mutate(SecShelf = NA)
   return(newdata)
+}
+## ----end
+
+## ---- brm_generate_cellmeans_no_dist_function
+brm_generate_cellmeans_no_dist <- function(newdata, pred) {
+  newdata |>
+    cbind(pred) |> 
+    pivot_longer(cols = matches("^[0-9]*$"), names_to = ".draws") |>
+    mutate(Pred = (value)) |>
+    separate(SecShelfYr, into = c("A_SECTOR", "SHELF", "REPORT_YEAR"), sep = " ") 
 }
 ## ----end
 
@@ -745,6 +781,47 @@ dist_palette <- tribble(
   )
 ## ----end
 
+## ---- brm_partial_plot_no_dist_function
+brm_partial_plot_no_dist <- function(cellmeans_summ_brm) {
+  p <-
+    cellmeans_summ_brm |>
+    mutate(
+      A_SECTOR = factor(A_SECTOR,
+        levels = c("CG", "PC", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+        labels = c(
+          "Cape Grenville", "Princess Charlotte Bay", "Cooktown Lizard", "Cairns",
+          "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
+        )
+      ),
+      SHELF = factor(SHELF,
+        levels = c("I", "M", "O"),
+        labels = c("Inshore", "Midshelf", "Offshore")
+      )
+    ) |>
+    ggplot(aes(y = median, x = as.numeric(as.character(REPORT_YEAR)))) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "orange", alpha = 0.3) +
+    geom_line() +
+    geom_pointrange(aes(ymin = lower, ymax = upper),
+      position = position_dodge(width = 0.5),
+      show.legend = FALSE) +
+    ## scale_y_continuous("Seriatopora cover (%)", trans = scales::log_trans(), labels =  function(x) x*100) +
+    theme_bw() +
+    theme(
+      axis.title.y = element_text(size = rel(1.25),
+        margin = margin(r = 1, unit = "char")),
+      axis.title.x = element_text(size = rel(1.25),
+        margin = margin(t = 1, unit = "char")),
+      axis.text.y = element_text(size = rel(1.0)),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      strip.background = element_rect(fill = "#95b8d1"),
+      strip.text = element_text(size = rel(1.25))) +
+    facet_grid(A_SECTOR ~ SHELF,
+      scales = "free",
+      labeller = label_wrap_gen(width = 12, multi_line = TRUE)
+    )
+  p
+}
+## ----end
 ## ---- brm_partial_plot_function
 brm_partial_plot <- function(cellmeans_summ_brm) {
   before_underlay_band <- cellmeans_summ_brm |>
@@ -757,10 +834,17 @@ brm_partial_plot <- function(cellmeans_summ_brm) {
         levels = c("Before", "b", "c", "s", "d", "u"),
         labels = c("Before", "Bleaching", "COTS", "Storms", "Disease", "Unknown")
       ),
+      ## A_SECTOR = factor(A_SECTOR,
+      ##   levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+      ##   labels = c(
+      ##     "Cape Grenville", "Cooktown Lizard", "Cairns",
+      ##     "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
+      ##   )
+      ## ),
       A_SECTOR = factor(A_SECTOR,
-        levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+        levels = c("CG", "PC", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
         labels = c(
-          "Cape Grenville", "Cooktown Lizard", "Cairns",
+          "Cape Grenville", "Princess Charlotte Bay", "Cooktown Lizard", "Cairns",
           "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
         )
       ),
@@ -775,10 +859,17 @@ brm_partial_plot <- function(cellmeans_summ_brm) {
     mutate(Dist2 = factor(Dist2,
       levels = c("Before", "b", "c", "s", "d", "u"),
       labels = c("Before", "Bleaching", "COTS", "Storms", "Disease", "Unknown"))) |> 
+    ## mutate(A_SECTOR = factor(A_SECTOR,
+    ##   levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+    ##   labels = c(
+    ##     "Cape Grenville", "Cooktown Lizard", "Cairns",
+    ##     "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
+    ##   )
+    ## ),
     mutate(A_SECTOR = factor(A_SECTOR,
-      levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+      levels = c("CG", "PC", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
       labels = c(
-        "Cape Grenville", "Cooktown Lizard", "Cairns",
+        "Cape Grenville", "Princess Charlotte Bay", "Cooktown Lizard", "Cairns",
         "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
       )
     ),
@@ -902,6 +993,7 @@ brm_effects_plot <- function(eff_brm) {
     "scb",   "Storms/Bleaching/COTS",
     "sd",    "Storms/Disease",
     "su",    "Storms/Unknown",
+    "db",    "Disease/Bleaching",
   )
 
   dist_palette <- dist_palette |>
@@ -912,10 +1004,17 @@ brm_effects_plot <- function(eff_brm) {
     ## mutate(Dist = forcats::fct_relevel(Dist, "b", "c", "s", "u", "d")) |>
     mutate(Dist = factor(Dist, levels = dist_full_order$levels, labels = dist_full_order$labels)) |>
     ## mutate(Dist = forcats::fct_relevel(Dist, dist_order$levels)) |>
+    ## mutate(A_SECTOR = factor(A_SECTOR,
+    ##   levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+    ##   labels = c(
+    ##     "Cape Grenville", "Cooktown Lizard", "Cairns",
+    ##     "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
+    ##   )
+    ## ),
     mutate(A_SECTOR = factor(A_SECTOR,
-      levels = c("CG", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
+      levels = c("CG", "PC", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
       labels = c(
-        "Cape Grenville", "Cooktown Lizard", "Cairns",
+        "Cape Grenville", "Princess Charlotte Bay", "Cooktown Lizard", "Cairns",
         "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
       )
     ),

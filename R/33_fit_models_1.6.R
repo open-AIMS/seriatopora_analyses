@@ -20,13 +20,14 @@ rerun_models <- FALSE
   ## ---- q2_prepare_data_1.6
   ## Focus on only the necessary variables
   data <- data |>
-    mutate(SecShelf = paste(A_SECTOR, SHELF)) |> 
+    mutate(SecShelf = paste(A_SECTOR, SHELF)) |>
+    mutate(zone_depth = factor(paste0(REEF_ZONE, DEPTH))) |>
     dplyr::select(
       n.points, total.points, Dist.time, s, c, d, b, u,
       AIMS_REEF_NAME, Site, Transect, SecShelf, Dist.number, Dist,
-      SecShelf, SSDist, event
+      SecShelf, SSDist, event, zone_depth
     ) |>
-    filter(!SecShelf %in% c("CG M", "PC M", "PC O")) |>
+    ## filter(!SecShelf %in% c("CG M", "PC M", "PC O")) |>
     droplevels()
   ## mutate(across(c(s, c, d, b, u), \(x) ifelse(Dist.time == "Before", 0, x))) 
   ## ----end
@@ -81,6 +82,7 @@ rerun_models <- FALSE
           n.points | trials(total.points) ~ SecShelf * (s + c + d + b + u) +
             (1 | event) +
             (1 | AIMS_REEF_NAME) +
+            (1 | zone_depth) +
             (1 | Site) +
             (1 | Transect),
           family = "beta_binomial"
@@ -367,7 +369,10 @@ rerun_models <- FALSE
         ungroup() 
 
       save(cellmeans_brm, file = "../data/modelled/cellmeans_brm_1.6_gbr_type_2.RData")
-      
+
+      cellmeans_brm <- cellmeans_brm |>
+        filter((A_SECTOR == "PC" & SHELF == "M"))
+
       eff_brm <- brm_calc_effect_hier(cellmeans_brm)
 
       eff_brm <-

@@ -29,10 +29,10 @@ source("../R/02_prepare_paths.R")
 ## Read in the data provided by Mike (23/02/2024 via email)
 ## source("05_read_data.R")
 
+## Question 1 - temporal (quasi-spatial) patterns
 ## Process the data
 source("10_process_data.R")
 if (1 == 2) {
-  ## Question 1 - temporal (quasi-spatial) patterns
 
   ## Prepare the data
   source("21_prepare_data.R")
@@ -45,13 +45,24 @@ if (1 == 2) {
 }
 
 ## Question 2 - Before/After analyses
-source("31_prepare_data.R")
+{
+  source("31_prepare_data.R")
 
-## Exploratory data analysis
+  ## Exploratory data analysis
+  source("32_eda.R")
 
-source("32_eda.R")
+  ## Fit model
+  source("33_fit_models.R")
+}
 
-## Fit model
+## Question 3 - (quasi) spatio-temporal patterns in juvenile density
+{
+  source("41_prepare_data.R")
 
-source("33_fit_models.R")
+  ## Exploratory data analysis
+  source("42_eda.R")
 
+  ## Fit model
+  source("43_fit_models.R")
+
+}

@@ -21,10 +21,11 @@ rerun_models <- FALSE
   ## Focus on only the necessary variables
   data <- data |>
     mutate(SecShelf = paste(A_SECTOR, SHELF)) |> 
+    mutate(zone_depth = factor(paste0(REEF_ZONE, DEPTH))) |> 
     dplyr::select(
       n.points, total.points, Dist.time, s, c, d, b, u,
       AIMS_REEF_NAME, Site, Transect, SecShelf, Dist.number, Dist,
-      SecShelf, SSDist, event
+      SecShelf, SSDist, event, zone_depth
     ) |>
     filter(!SecShelf %in% c("CG M", "PC M", "PC O")) |>
     droplevels()
@@ -142,6 +143,7 @@ rerun_models <- FALSE
             (1 | SecShelf:(s + c + d + b + u)) +
             (1 | event) +
             (1 | AIMS_REEF_NAME) +
+            (1 | zone_depth) +
             (1 | Site) +
             (1 | Transect),
           data = data,
@@ -202,7 +204,8 @@ rerun_models <- FALSE
       ## 2. create a field (Dist2) that concatenates all Dists based on the 0's and 1's
       newdata <-
         data |>
-        dplyr::select(SecShelf, Dist, s, c, d, b, u) |>
+        mutate(zone_depth = NA) |> 
+        dplyr::select(zone_depth,SecShelf, Dist, s, c, d, b, u) |>
         ## filter(SecShelf == "CA M") |> 
         distinct() |>
         rowwise() |>
@@ -373,6 +376,7 @@ rerun_models <- FALSE
             (1 | SecShelf:(s + c + d + b + u)) +
             (1 | event) +
             (1 | AIMS_REEF_NAME) +
+            (1 | zone_depth) +
             (1 | Site) +
             (1 | Transect),
           family = "beta_binomial"
@@ -392,7 +396,7 @@ rerun_models <- FALSE
           ##iter = 50, warmup = 10,
           chains = 3, cores = 3,
           sample_prior = "yes",
-          thin = 5,
+          thin = 10,
           backend = "cmdstanr",
           control = list(adapt_delta = 0.99)
         )

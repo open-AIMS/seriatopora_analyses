@@ -26,8 +26,12 @@ rerun_models <- FALSE
 
 ## Model 7.1  logit(P()) = β₀ +  γₐᵢ + γ₀ᵢ + γ₁ⱼ + γ₂ₖ, logit(P()) = α₀ + γ₀ᵢᵣ + γ₁ⱼᵣ + γ₂ₖᵣ  (Zero-inflated Binomial)
 ## source("33_fit_models_7.1.R")
-source("33_fit_models_7.1_raw.R")
-source("33_fit_models_1.1.R")
+## source("33_fit_models_7.1_raw.R")
+## source("33_fit_models_1.1.R")
+
+
+source("33_fit_models_1.5.R")
+source("33_fit_models_1.6.R")
 
 ## data <- data |>
 ##   dplyr::select(n.points, total.points, A_SECTOR, SHELF, SecShelf,

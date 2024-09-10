@@ -430,7 +430,7 @@ And the functions called
 ![](analysis_files/figure-html/partial_brm_1.5b_pretty_type_3.png)
 ![](analysis_files/figure-html/partial_brm_1.5a_type_3.png)
 -->
-
+ 
 :::::: {.callout-note collapse="true"}
 
 ###### Reveal codes
@@ -816,7 +816,7 @@ And the functions called
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: true
+#| cache: false
 ```
 
 ```{r}
@@ -824,7 +824,7 @@ And the functions called
 #| results: markup
 #| eval: true
 #| echo: true
-#| cache: true
+#| cache: false
 ```
 
 ::: {.panel-tabset}
@@ -1260,3 +1260,4 @@ form <- bf(
 ::::
 
 :::
+

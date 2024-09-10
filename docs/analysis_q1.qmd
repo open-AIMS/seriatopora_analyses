@@ -1,0 +1,614 @@
+---
+title: LTMP Seriatopora - data analysis Q1 
+author: "Murray Logan"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+format: 
+  html:
+    css: style.css
+    toc: true
+    toc-float: true
+    number-sections: true
+    number-depth: 3
+    embed-resources: true
+    code-fold: false
+    code-tools: true
+    code-summary: "Show the code"
+crossref:
+  fig-title: '**Figure**'
+  fig-labels: arabic
+  tbl-title: '**Table**'
+  tbl-labels: arabic
+engine: knitr
+output_dir: "docs"
+---
+ 
+```{r chunks, results='markdown', eval=TRUE, echo = FALSE}
+assignInNamespace('.sep.label',  "^\\ *(#|--)+\\s*(@knitr|----+)(.*?)-*\\s*$", ns='knitr')
+
+knitr::read_chunk("../R/00_main.R") 
+knitr::read_chunk("../R/helper_functions.R") 
+knitr::read_chunk("../R/21_prepare_data.R")
+knitr::read_chunk("../R/22_eda.R")
+knitr::read_chunk("../R/23_fit_models.R")
+```
+ 
+**Investigating into the (quasi) spatial-temporal trends in Seriatopora
+cover.**
+
+# Preparations
+
+- Load required packages
+```{r}
+#| label: loadLibraries
+#| eval: true
+#| message: false
+#| warnings: false
+#| output: false
+#| cache: false
+```
+
+- Load any helper functions
+
+```{r}
+#| label: loadFunctions
+#| eval: true
+```
+
+## Preprare data
+
+Load the data
+
+```{r}
+#| label: q1_load_data
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+Process the data - at this stage, we will just add a couple of
+additional variables that will be used in the models
+
+```{r}
+#| label: q1_process_data
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+Save the data
+
+```{r}
+#| label: q1_save_data
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+
+
+# Exploratory data analyses
+
+```{r}
+#| label: q1_retrieve_data
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+::: {.panel-tabset}
+
+### Basic data characteristics
+
+```{r}
+#| label: q1_eda_1
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+#| fig-width: 20
+#| fig-height: 20
+#| fig-cap: Each line represents a separate site.  Points are simple means and error bars are simple 2*SE
+```
+Conclusions:
+
+- substantial combinations with all 0's (this could be highly problematic)
+- spatial combinations where no data are present
+- very low or no variability in some sector/shelf combinations over time
+- presences are relatively rare
+
+### Sector/Shelf/Year combinations have only 0 counts
+```{r}
+#| label: q1_eda_2
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+Conclusions:
+
+- 69 Sector/Shelf/Years with all 0's It is likely we will need to
+  exclude these from the analyses and put them back in at the end -
+  they will destabalise the model without very specific and strong
+  priors
+
+### Distributions over space
+```{r}
+#| label: q1_eda_3
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+#| fig-width: 20
+#| fig-height: 20
+#| fig-cap: Distributions over space 
+```
+
+Conclusions:
+
+- Could be zero-inflated - more so in some sector/shelf
+
+### Distributions over time
+```{r}
+#| label: q1_eda_4
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+#| fig-width: 20
+#| fig-height: 20
+#| fig-cap: Distributions over time 
+```
+
+Conclusions:
+
+- more evidence of zero-inflation
+
+:::
+
+# Analyses
+
+The incidences of Seriatopora are going to make modelling abundance
+very difficult - or at least it is going to be difficult to highlight
+a trend signal among the noise. In such circumstances, it is often
+useful to split the analysis up into:
+1. an investigation of presence/absence only
+2. exploration of abundance where they are present
+
+It might also be useful to aggregate the counts up the site level
+(aggregate over transects within sites).
+
+In light of the exploratory data analysis, we will perform some additional
+data preparations.
+
+## Presence/absence
+
+1. create single variables for representing either sector/shelf/year
+   or just sector/shelf. Such variables will be used in the models
+   rather than more typical multiple variables and interactions so as
+   to handle the missing combinations of sector/shelf/year. If we were
+   to use the separate variables and their interactions, the models
+   would try to estimate the associated parameters (which would have
+   no data). This not only will slow the models down considerably (and
+   likely result in strange estimates across the board), the
+   uncertainties in these estimates will be very large (as they will
+   essentially just echo the priors).
+2. relevel the sector/shelf/year categorical variable such that the
+   first (reference) level that will be used as the intercept is IN M
+   2016 (since this combination has the highest abundances and will
+   likely be best estimated).
+3. generate a binary response representing 0 when counts are 0 and 1
+   otherwise.
+
+```{r}
+#| label: q1_prepare_data_for_model_1 
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+::: {.panel-tabset}
+
+## glmmTMB
+
+:::: {.panel-tabset}
+
+### Fit model
+
+```{r}
+#| label: q1_glmmTMB_fit_1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+### Model validation
+
+```{r}
+#| label: q1_glmmTMB_validation_1
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+```{r}
+#| label: q1_glmmTMB_validation_1
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+### Summaries
+
+```{r}
+#| label: q1_glmmTMB_summaries_print_1
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+```
+
+```{r}
+#| label: q1_glmmTMB_summaries_1
+#| results: markup
+#| eval: true
+#| echo: true
+```
+
+```{r}
+#| label: q1_glmmTMB_summaries_print_1
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+### Partial plots
+
+![](analysis_q1_files/figure-html/partial_glmmTMB_q1_1.png)
+
+```{r}
+#| label: q1_glmmTMB_partial_effects_1
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+Note, although I wanted to include confidence ribbons, as the model
+did not converge, they are not available.
+::::
+
+## brms
+
+:::: {.panel-tabset}
+
+### Fit model
+
+```{r}
+#| label: q1_brm_fit_1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+### HMC diagnostics
+
+![](../docs/analysis_files/figure-html/stan_trace_q1_brm_1.png)
+![](../docs/analysis_files/figure-html/stan_ac_q1_brm_1.png)
+![](../docs/analysis_files/figure-html/stan_ess_q1_brm_1.png)
+
+```{r}
+#| label: q1_brm_trace_1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### Model validation
+
+![](../docs/analysis_files/figure-html/pcc_q1_brm_1.png)
+
+```{r}
+#| label: q1_brm_validation_1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### DHARMa residuals
+
+![](../docs/analysis_files/figure-html/dharma_q1_brm_1.png)
+
+```{r}
+#| label: q1_brm_dharma_1_a
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### Model summary
+
+```{r}
+#| label: q1_brm_summary_print_1
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+```{r}
+#| label: q1_brm_summary_1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### Partial plots type 1
+
+![](../docs/analysis_files/figure-html/partial_q1_brm_type_1_1.png)
+
+```{r}
+#| label: q1_brm_partial_effects_1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### Partial plots type 2
+
+![](../docs/analysis_files/figure-html/partial_q1_brm_type_2_1.png)
+
+```{r}
+#| label: q1_brm_partial_effects_type_2_1
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+::::
+
+:::
+
+## Positive abundance
+
+
+1. create single variables for representing either sector/shelf/year
+   or just sector/shelf. Such variables will be used in the models
+   rather than more typical multiple variables and interactions so as
+   to handle the missing combinations of sector/shelf/year. If we were
+   to use the separate variables and their interactions, the models
+   would try to estimate the associated parameters (which would have
+   no data). This not only will slow the models down considerably (and
+   likely result in strange estimates across the board), the
+   uncertainties in these estimates will be very large (as they will
+   essentially just echo the priors).
+2. exclude those sector/shelf/year combinations that are invariant and
+   all 0
+3. relevel the sector/shelf/year categorical variable such that the
+   first (reference) level that will be used as the intercept is IN M
+   2016 (since this combination has the highest abundances and will
+   likely be best estimated).
+
+```{r}
+#| label: q1_prepare_data_for_model 
+#| results: markup
+#| eval: true
+#| echo: true
+#| cache: true
+```
+
+
+::: {.panel-tabset}
+
+## glmmTMB
+
+:::: {.panel-tabset}
+
+### Fit model
+
+```{r}
+#| label: q1_glmmTMB_fit
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+### Model validation
+
+```{r}
+#| label: q1_glmmTMB_validation
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+```{r}
+#| label: q1_glmmTMB_validation
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+### Summaries
+
+```{r}
+#| label: q1_glmmTMB_summaries_print
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+```
+
+```{r}
+#| label: q1_glmmTMB_summaries
+#| results: markup
+#| eval: true
+#| echo: true
+```
+
+```{r}
+#| label: q1_glmmTMB_summaries_print
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+### Partial plots
+
+![](analysis_q1_files/figure-html/partial_glmmTMB_q1.png)
+
+```{r}
+#| label: q1_glmmTMB_partial_effects
+#| results: markup
+#| eval: false
+#| echo: true
+```
+
+Note, although I wanted to include confidence ribbons, as the model
+did not converge, they are not available.
+::::
+
+## brms
+
+:::: {.panel-tabset}
+
+### Fit model
+
+```{r}
+#| label: q1_brm_fit
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+```
+
+### HMC diagnostics
+
+![](../docs/analysis_files/figure-html/stan_trace_q1_brm.png)
+![](../docs/analysis_files/figure-html/stan_ac_q1_brm.png)
+![](../docs/analysis_files/figure-html/stan_ess_q1_brm.png)
+
+```{r}
+#| label: q1_brm_trace
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### Model validation
+
+![](../docs/analysis_files/figure-html/pcc_q1_brm.png)
+
+```{r}
+#| label: q1_brm_validation
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### DHARMa residuals
+
+![](../docs/analysis_files/figure-html/dharma_q1_brm.png)
+
+```{r}
+#| label: q1_brm_dharma_a
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### Model summary
+
+```{r}
+#| label: q1_brm_summary_print
+#| results: markup
+#| eval: true
+#| echo: false
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+```{r}
+#| label: q1_brm_summary
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### Partial plots type 1
+
+![](../docs/analysis_files/figure-html/partial_q1_brm_type_1_3.png)
+
+```{r}
+#| label: q1_brm_partial_effects
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+### Partial plots type 2
+
+![](../docs/analysis_files/figure-html/partial_q1_brm_type_2_3.png)
+
+```{r}
+#| label: q1_brm_partial_effects_type_2
+#| results: markup
+#| eval: false
+#| echo: true
+#| cache: true
+#| fig-width: 15
+#| fig-height: 5
+```
+
+::::
+
+:::
+ 
+
+ 
