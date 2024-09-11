@@ -370,9 +370,6 @@ rerun_models <- FALSE
 
       save(cellmeans_brm, file = "../data/modelled/cellmeans_brm_1.6_gbr_type_2.RData")
 
-      cellmeans_brm <- cellmeans_brm |>
-        filter((A_SECTOR == "PC" & SHELF == "M"))
-
       eff_brm <- brm_calc_effect_hier(cellmeans_brm)
 
       eff_brm <-

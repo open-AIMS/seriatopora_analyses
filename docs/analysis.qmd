@@ -246,8 +246,7 @@ inappropriate from a modelling perspective. Notice that many of the
 ```
 
 ::::
-
-
+ 
 ### BRMS
  
 :::: {.panel-tabset}
