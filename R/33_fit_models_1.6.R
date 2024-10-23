@@ -291,10 +291,20 @@ rerun_models <- FALSE
       load(file = "../data/modelled/eff_brm_1.6_type_1.RData")
 
       p <- brm_effects_plot(eff_brm)
+
+      p <- p +
+          theme(
+            axis.text.x = element_text(size = 10),
+            axis.text.y = element_text(size = 12),
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            strip.text = element_text(size = 14)
+          )
+        p
       ggsave(
         filename = "../docs/analysis_files/figure-html/contrasts_brm_1.6_type_1.png",
         p,
-        width = 15, height = 12
+        width = 15, height = 13, dpi = 300
       )
     }
     ## Contrasts - Type 2. sector/shelf re_formula = NA

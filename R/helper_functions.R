@@ -790,12 +790,12 @@ brm_partial_plot_no_dist <- function(cellmeans_summ_brm) {
         levels = c("CG", "PC", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
         labels = c(
           "Cape Grenville", "Princess Charlotte Bay", "Cooktown Lizard", "Cairns",
-          "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
+          "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricorn Bunker"
         )
       ),
       SHELF = factor(SHELF,
         levels = c("I", "M", "O"),
-        labels = c("Inshore", "Midshelf", "Offshore")
+        labels = c("Inshore", "Mid-shelf", "Outer shelf")
       )
     ) |>
     ggplot(aes(y = median, x = as.numeric(as.character(REPORT_YEAR)))) +
@@ -1015,10 +1015,10 @@ brm_effects_plot <- function(eff_brm) {
       levels = c("CG", "PC", "CL", "CA", "IN", "TO", "WH", "PO", "SW", "CB"),
       labels = c(
         "Cape Grenville", "Princess Charlotte Bay", "Cooktown Lizard", "Cairns",
-        "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricon Bunker"
+        "Innisfail", "Townsville", "Whitsunday", "Pompey", "Swain", "Capricorn Bunker"
       )
     ),
-    SHELF =  factor(SHELF, levels = c("I", "M", "O"), labels = c("Inshore", "Midshelf", "Offshore")))|> 
+    SHELF =  factor(SHELF, levels = c("I", "M", "O"), labels = c("Inshore", "Mid-shelf", "Outer shelf")))|> 
     ## ggplot(aes(x = Values, y = Dist2, group = Dist, shape = cummulative)) +
     ggplot(aes(x = Values, y = Dist2, group = Dist, shape = factor(number_of_dist))) +
     geom_vline(xintercept = 1, linetype = "dashed") +

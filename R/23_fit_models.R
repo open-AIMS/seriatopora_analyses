@@ -654,7 +654,8 @@ data <- full_data
       summarise(Points = sum(n.points)) |>
       arrange(desc(Points))
     ## 492 missing - lets exclude those
-
+    data_with_excludes <- data
+    save(data_with_excludes, file = "../data/processed/data_q1_with_excludes.RData")
     excludes <- data |>
       group_by(SecShelfYr) |>
       summarise(Points = sum(n.points)) |>
@@ -1341,6 +1342,58 @@ data <- full_data
           ## ----end
         }
       }
+      ## Performed on the HPC (23_fit_models_HPC_with_excludes.R)
+      {
+        if (rerun_models) {
+          ## ---- q1_brm_fit_with_excludes
+          form <- bf(
+            n.points | trials(total.points) ~ 0 + SecShelfYr +
+              (1 | SecShelfYr) +
+              (1 | AIMS_REEF_NAME) +
+              (1 | zone_depth) +
+              (1 | Site) +
+              (1 | Transect),
+            ## family = "beta_binomial"
+            zi ~ (1 | SecShelfYr) + (1| zone_depth) + (1 | Site),
+            family = zero_inflated_binomial()
+          )
+          save(data_with_excludes, file = "../data/processed/data_q1_with_excludes.RData")
+          data <- dat_with_excludes
+          data |>
+            group_by(SecShelfYr) |>
+            summarise(
+              M = median(qlogis(n.points / total.points), na.rm = TRUE),
+              S = mad(qlogis(n.points / total.points), na.rm = TRUE),
+              Mean = qlogis(mean(n.points / total.points)),
+              SD = qlogis(sd(n.points / total.points))
+            )
+          priors <- prior(normal(-4, 1), class = "Intercept") +
+            ## prior(normal(0, 2), class = "b") +
+            prior(student_t(3, 0, 1), class = "sd") +
+            prior(logistic(0, 1), class = "Intercept", dpar = "zi") +
+            ## prior(normal(0,1), class = 'b', dpar = 'zi') +
+            prior(student_t(3, 0, 1), class = "sd", dpar = "zi") 
+
+          for (j in 1:nrow(excludes)) { 
+            priors <- priors +   
+              prior_string("normal(-4, 0.01)", class = "b",
+                coef = paste0("SecShelfYr", gsub(" ", "", excludes[j,'SecShelfYr'])))
+          }
+          mod_brm <- brm(
+            formula = form,
+            data = data,
+            prior = priors,
+            iter = 5000, warmup = 1000,
+            chains = 3, cores = 3,
+            sample_prior = "yes",
+            thin = 10,
+            backend = "cmdstanr",
+            control = list(adapt_delta = 0.99)
+          )
+          save(mod_brm, file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
+          ## ----end
+        }
+      }
       ## MCMC diagnostics
       {
         ## ---- q1_brm_trace
@@ -1496,6 +1549,7 @@ data <- full_data
         cellmeans_brm <- brm_generate_cellmeans_no_dist(newdata, pred)
 
         save(cellmeans_brm, file = "../data/modelled/cellmeans_q1_brm_type_2_3.RData")
+        load(file = "../data/modelled/cellmeans_q1_brm_type_2_3.RData")
 
         cellmeans_summ_brm <- cellmeans_brm |>
           dplyr::select(-.draws) |>
@@ -1505,13 +1559,23 @@ data <- full_data
           dplyr::select(A_SECTOR, SHELF, REPORT_YEAR, median, lower, upper)
 
         save(cellmeans_summ_brm, file = "../data/modelled/cellmeans_summ_q1_brm_type_2_3.RData")
+        load(file = "../data/modelled/cellmeans_summ_q1_brm_type_2_3.RData")
 
         p <- brm_partial_plot_no_dist(cellmeans_summ_brm)
+        p <- p + scale_y_continuous("Seriatopora cover (%)", labels = scales::percent_format(accuracy = 0.1, suffix = "")) +
+          scale_x_continuous("Year") +
+          theme(
+            axis.text.x = element_text(size = 12),
+            axis.text.y = element_text(size = 12),
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16),
+            strip.text = element_text(size = 14)
+          )
         p
         ggsave(
           filename = "../docs/analysis_files/figure-html/partial_q1_brm_type_2_3.png",
           p,
-          width = 15, height = 12
+          width = 15, height = 13, dpi = 300
         )
         ## ----end
       }
