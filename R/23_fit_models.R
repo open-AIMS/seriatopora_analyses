@@ -1367,7 +1367,8 @@ data <- full_data
               Mean = qlogis(mean(n.points / total.points)),
               SD = qlogis(sd(n.points / total.points))
             )
-          priors <- prior(normal(-4, 1), class = "Intercept") +
+          priors <- prior(normal(0, 3), class = "b") +
+          ## priors <- prior(normal(-4, 1), class = "Intercept") +
             ## prior(normal(0, 2), class = "b") +
             prior(student_t(3, 0, 1), class = "sd") +
             prior(logistic(0, 1), class = "Intercept", dpar = "zi") +
@@ -1391,6 +1392,7 @@ data <- full_data
             control = list(adapt_delta = 0.99)
           )
           save(mod_brm, file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
+          load(file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
           ## ----end
         }
       }
@@ -1399,14 +1401,16 @@ data <- full_data
         ## ---- q1_brm_trace
         ## load(file = "../data/modelled/mod_q1_brm.RData")
         ## system("scp mlogan@hpc-l001.aims.gov.au:~/Work/AIMS/LTMP/Seriatopora/data/modelled/mod_q1_brm_3.RData ../data/modelled/mod_q1_brm_3.RData")
-        load(file = "../data/modelled/mod_q1_brm_3.RData")
+        ## load(file = "../data/modelled/mod_q1_brm_3.RData")
+        load(file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
         rstan::stan_trace(mod_brm$fit)
         rstan::stan_ac(mod_brm$fit)
         rstan::stan_ess(mod_brm$fit) + rstan::stan_rhat(mod_brm$fit)
         ## ----end
         
         ## ---- q1_brm_trace
-        load(file = "../data/modelled/mod_q1_brm_3.RData")
+        ## load(file = "../data/modelled/mod_q1_brm_3.RData")
+        load(file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
         ggsave(
           filename = "../docs/analysis_files/figure-html/stan_trace_q1_brm.png",
           rstan::stan_trace(mod_brm$fit),
@@ -1427,13 +1431,15 @@ data <- full_data
       ## Model validation
       {
         ## ---- q1_brm_validation_a
-        load(file = "../data/modelled/mod_q1_brm_3.RData")
+        ## load(file = "../data/modelled/mod_q1_brm_3.RData")
+        load(file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
         mod_brm |> pp_check(type = "dens_overlay", ndraws = 100) + scale_x_log10() +
           mod_brm |> pp_check(type = "loo_pit_overlay", ndraws = 100)
         ## ----end
 
         ## ---- q1_brm_validation
-        load(file = "../data/modelled/mod_q1_brm_3.RData")
+        ## load(file = "../data/modelled/mod_q1_brm_3.RData")
+        load(file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
         ggsave(
           filename = "../docs/analysis_files/figure-html/pcc_q1_brm.png",
           mod_brm |> pp_check(type = "dens_overlay", ndraws = 100) + scale_x_log10() +
@@ -1477,7 +1483,8 @@ data <- full_data
       ## Model summary
       {
         ## ---- q1_brm_summary
-        load(file = "../data/modelled/mod_q1_brm_3.RData")
+        ## load(file = "../data/modelled/mod_q1_brm_3.RData")
+        load(file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
 
         summ <- 
           bind_rows(
@@ -1506,7 +1513,8 @@ data <- full_data
       ## Partial plots -  Type 1. sector/shelf re_formula = NULL
       {
         ## ---- q1_brm_partial_effects
-        load(file = "../data/modelled/mod_q1_brm_3.RData")
+        ## load(file = "../data/modelled/mod_q1_brm_3.RData")
+        load(file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
         newdata <- brm_generate_newdata_no_dist(data)
         pred <- t(brms::posterior_epred(mod_brm,
           newdata = newdata,
@@ -1538,7 +1546,8 @@ data <- full_data
       ## Partial plots -  Type 2. sector/shelf re_formula = NA
       {
         ## ---- q1_brm_partial_effects_type_2
-        load(file = "../data/modelled/mod_q1_brm_3.RData")
+        ## load(file = "../data/modelled/mod_q1_brm_3.RData")
+        load(file = "../data/modelled/mod_q1_brm_3_with_excludes.RData")
         newdata <- brm_generate_newdata_no_dist(data)
         pred <- t(brms::posterior_epred(mod_brm,
           newdata = newdata,
